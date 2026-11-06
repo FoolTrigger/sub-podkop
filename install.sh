@@ -4,10 +4,10 @@
 #   2. the podkop-engine sing-box core (REALITY compatible with modern Xray servers).
 #
 # Usage:
-#   sh install.sh                install the add-on and the core
-#   sh install.sh --no-core      add-on only (keep the current sing-box)
-#   sh install.sh --core-only    core only
-#   sh install.sh --uninstall    restore the files from the latest backup
+#   sh install.sh               install the add-on and the core
+#   sh install.sh --no-core     add-on only (keep the current sing-box)
+#   sh install.sh --core-only   core only
+#   sh install.sh --uninstall   restore the files from the latest backup
 #
 # Variables: PE_VERSION (core version), PE_FLAVOR (podkop-engine | podkop-engine-full),
 #            PE_ALLOW_UNVERIFIED=1 (install a core whose checksum is unknown)
@@ -15,7 +15,7 @@
 set -eu
 
 ADDON_VERSION="1.0.0"
-RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/OWNER/REPO/main}"
+RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PE_VERSION="${PE_VERSION:-1.13.21-r15}"
 PE_FLAVOR="${PE_FLAVOR:-podkop-engine}"
 PE_REPO="podkop-net/podkop-engine"
@@ -60,7 +60,7 @@ command -v wget > /dev/null 2>&1 || die "не найден wget"
 # ---------------------------------------------------------------- uninstall
 if [ "$DO_UNINSTALL" = "1" ]; then
     last=""
-    for d in $(ls -d "$ROOT"/root/rtr-subs-backup-* 2> /dev/null | sort); do
+    for d in $(ls -d "$ROOT"/root/rtr-subs-backup-* 2> /dev/null | sort -r); do
         if [ -f "$d/podkop" ]; then
             last="$d"
             break
@@ -73,8 +73,19 @@ if [ "$DO_UNINSTALL" = "1" ]; then
     [ -f "$last/main.js" ] && cp "$last/main.js" "$VIEW/main.js"
     [ -f "$last/section.js" ] && cp "$last/section.js" "$VIEW/section.js"
     [ -f "$last/podkop.ru.lmo" ] && cp "$last/podkop.ru.lmo" "$I18N/podkop.ru.lmo"
+
     rm -f "$LIB/subscription.sh"
     rm -rf "$ROOT/etc/podkop/subscriptions"
+
+    # Очистка cron от задач обновления подписок
+    if [ -f "$ROOT/etc/crontabs/root" ]; then
+        sed -i '/subscription/d; /rtr-subs/d' "$ROOT/etc/crontabs/root" 2> /dev/null || true
+        [ -x "$ROOT/etc/init.d/cron" ] && "$ROOT/etc/init.d/cron" restart > /dev/null 2>&1 || true
+    fi
+
+    # Удаляем использованный бэкап, чтобы при повторной установке создался свежий
+    rm -rf "$last"
+
     rm -f "$ROOT"/tmp/luci-indexcache* 2> /dev/null || true
     rm -rf "$ROOT"/tmp/luci-modulecache 2> /dev/null || true
     [ -x "$ROOT/etc/init.d/podkop" ] && "$ROOT/etc/init.d/podkop" restart || true
@@ -94,7 +105,8 @@ get_payload() {
     fi
     case "$RAW_BASE" in *OWNER/REPO*) die "RTR_SUBS_RAW не задан: укажите адрес репозитория" ;; esac
     for f in podkop subscription.sh main.js section.js podkop.ru.lmo; do
-        wget -qO "$PAYLOAD/$f" "$RAW_BASE/files/$f" || die "не удалось скачать $f"
+        wget -qO "$PAYLOAD/$f" "$RAW_BASE/files/$f" || die "не удалось скачать $f из $RAW_BASE/files/$f"
+        [ -s "$PAYLOAD/$f" ] || die "скачанный файл $f пуст"
     done
 }
 
@@ -167,9 +179,12 @@ expected_sha256() {
         return
     fi
     # otherwise ask the release metadata
-    command -v jq > /dev/null 2>&1 || return 0
     wget -qO "$WORK/release.json" "https://api.github.com/repos/$PE_REPO/releases/tags/v$PE_VERSION" 2> /dev/null || return 0
-    jq -r --arg n "$1" '.assets[]? | select(.name == $n) | .digest // empty' "$WORK/release.json" 2> /dev/null | sed 's/^sha256://'
+    if command -v jq > /dev/null 2>&1; then
+        jq -r --arg n "$1" '.assets[]? | select(.name == $n) | .digest // empty' "$WORK/release.json" 2> /dev/null | sed 's/^sha256://'
+    elif command -v jsonfilter > /dev/null 2>&1; then
+        jsonfilter -i "$WORK/release.json" -e "@.assets[@.name='$1'].digest" 2> /dev/null | sed 's/^sha256://'
+    fi
 }
 
 core_installed() {
@@ -218,15 +233,21 @@ install_core() {
     mkdir -p "$BACKUP"
     [ -f "$ROOT/usr/bin/sing-box" ] && cp "$ROOT/usr/bin/sing-box" "$BACKUP/sing-box.orig"
 
+    # Обновляем списки пакетов ДО остановки Podkop, пока работает DNS
+    if [ "$EXT" = "ipk" ]; then
+        opkg update > /dev/null 2>&1 || warn "opkg update не удался (продолжаю установку локального пакета)"
+    fi
+
     # DNS goes through sing-box while Podkop runs, so stop it first
     [ -x "$ROOT/etc/init.d/podkop" ] && "$ROOT/etc/init.d/podkop" stop || true
 
     if [ "$EXT" = "ipk" ]; then
-        opkg update > /dev/null 2>&1 || warn "opkg update не удался"
         opkg remove --force-depends sing-box sing-box-tiny > /dev/null 2>&1 || true
         opkg install "$WORK/$file" || die "установка ядра не удалась. Откат: opkg install sing-box"
     else
-        apk add --allow-untrusted "$WORK/$file" || die "установка ядра не удалась. Откат: apk add sing-box"
+        apk add --allow-untrusted --overwrite "$WORK/$file" 2> /dev/null || \
+            apk add --allow-untrusted "$WORK/$file" || \
+            die "установка ядра не удалась. Откат: apk add sing-box"
     fi
 
     core_installed || warn "пакет podkop-engine не найден в списке установленных"
