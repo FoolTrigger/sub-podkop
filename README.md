@@ -21,4 +21,4 @@
 Подключитесь к роутеру по SSH и выполните:
 
 ```sh
-wget -O /tmp/install.sh [https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main/install.sh](https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main/install.sh) && sh /tmp/install.sh
+wget -O /tmp/install.sh https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main/install.sh https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main/install.sh && sh /tmp/install.sh
