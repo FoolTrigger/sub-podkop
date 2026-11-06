@@ -1,0 +1,8 @@
+# 1. Создаём правила для Git (скрипты всегда в LF, а .lmo — бинарник)
+@"
+* text=auto eol=lf
+*.sh text eol=lf
+podkop text eol=lf
+*.js text eol=lf
+*.lmo binary
+"@ | Set-Content -Path .gitattributes -Encoding Ascii

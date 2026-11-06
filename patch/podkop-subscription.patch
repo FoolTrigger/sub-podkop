@@ -1,0 +1,1255 @@
+diff -ruN a/fe-app-podkop/locales/podkop.pot b/fe-app-podkop/locales/podkop.pot
+--- a/fe-app-podkop/locales/podkop.pot	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/locales/podkop.pot	2026-11-05 10:49:44.073452237 +0000
+@@ -1154,3 +1154,95 @@
+ #: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/settings.js:127
+ msgid "You can select Output Network Interface, by default autodetect"
+ msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription URL"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Link of the subscription provided by your VPN service. The fastest node is selected automatically (URLTest)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Device ID sent to the subscription server. Providers that limit the number of devices need it"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Automatic (generated from this router)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Custom"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Do not send"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Custom HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Any string that identifies this device, for example 3f2a9c4e7b1d4a60"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "HWID must not be empty"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Only letters, digits and the characters . _ - are allowed (up to 128)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Automatic HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "The HWID this router sends when the automatic mode is selected"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription User-Agent"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Some providers return a different format depending on the client. Leave the default unless the provider says otherwise"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "The User-Agent contains invalid characters"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription Update Interval"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "How often the router downloads the subscription again. Podkop is reloaded only if the nodes changed"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 1 hour"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 3 hours"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 12 hours"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 1 day"
++msgstr ""
+diff -ruN a/fe-app-podkop/locales/podkop.ru.po b/fe-app-podkop/locales/podkop.ru.po
+--- a/fe-app-podkop/locales/podkop.ru.po	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/locales/podkop.ru.po	2026-11-05 10:49:44.073479277 +0000
+@@ -823,3 +823,72 @@
+ 
+ msgid "You can select Output Network Interface, by default autodetect"
+ msgstr "Вы можете выбрать выходной сетевой интерфейс, по умолчанию он определяется автоматически."
++
++msgid "Subscription"
++msgstr "Подписка"
++
++msgid "Subscription URL"
++msgstr "Ссылка на подписку"
++
++msgid "Link of the subscription provided by your VPN service. The fastest node is selected automatically (URLTest)"
++msgstr "Ссылка на подписку от вашего VPN-сервиса. Самая быстрая нода выбирается автоматически (URLTest)"
++
++msgid "Subscription HWID"
++msgstr "HWID подписки"
++
++msgid "Device ID sent to the subscription server. Providers that limit the number of devices need it"
++msgstr "Идентификатор устройства, который отправляется серверу подписки. Нужен провайдерам, ограничивающим число устройств"
++
++msgid "Automatic (generated from this router)"
++msgstr "Автоматический (генерируется из данных роутера)"
++
++msgid "Custom"
++msgstr "Свой"
++
++msgid "Do not send"
++msgstr "Не отправлять"
++
++msgid "Custom HWID"
++msgstr "Свой HWID"
++
++msgid "Any string that identifies this device, for example 3f2a9c4e7b1d4a60"
++msgstr "Любая строка, идентифицирующая это устройство, например 3f2a9c4e7b1d4a60"
++
++msgid "HWID must not be empty"
++msgstr "HWID не должен быть пустым"
++
++msgid "Only letters, digits and the characters . _ - are allowed (up to 128)"
++msgstr "Допустимы только буквы, цифры и символы . _ - (до 128 символов)"
++
++msgid "Automatic HWID"
++msgstr "Автоматический HWID"
++
++msgid "The HWID this router sends when the automatic mode is selected"
++msgstr "HWID, который роутер отправляет в автоматическом режиме"
++
++msgid "Subscription User-Agent"
++msgstr "User-Agent подписки"
++
++msgid "Some providers return a different format depending on the client. Leave the default unless the provider says otherwise"
++msgstr "Некоторые провайдеры отдают разный формат в зависимости от клиента. Оставьте значение по умолчанию, если провайдер не требует другого"
++
++msgid "The User-Agent contains invalid characters"
++msgstr "User-Agent содержит недопустимые символы"
++
++msgid "Subscription Update Interval"
++msgstr "Интервал обновления подписки"
++
++msgid "How often the router downloads the subscription again. Podkop is reloaded only if the nodes changed"
++msgstr "Как часто роутер заново скачивает подписку. Podkop перезагружается, только если ноды изменились"
++
++msgid "Every 1 hour"
++msgstr "Каждый час"
++
++msgid "Every 3 hours"
++msgstr "Каждые 3 часа"
++
++msgid "Every 12 hours"
++msgstr "Каждые 12 часов"
++
++msgid "Every 1 day"
++msgstr "Каждый день"
+diff -ruN a/fe-app-podkop/src/podkop/methods/custom/getDashboardSections.ts b/fe-app-podkop/src/podkop/methods/custom/getDashboardSections.ts
+--- a/fe-app-podkop/src/podkop/methods/custom/getDashboardSections.ts	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/src/podkop/methods/custom/getDashboardSections.ts	2026-11-05 10:49:44.074587852 +0000
+@@ -26,6 +26,25 @@
+     }),
+   );
+ 
++  // the links of a subscription are cached by the router, not stored in the config
++  const subscriptionLinks: Record<string, string[]> = {};
++  await Promise.all(
++    configSections
++      .filter(
++        (section) =>
++          section.connection_type === 'proxy' &&
++          section.proxy_config_type === 'subscription',
++      )
++      .map(async (section) => {
++        const response = await PodkopShellMethods.getSubscriptionLinks(
++          section['.name'],
++        );
++
++        subscriptionLinks[section['.name']] =
++          response.success && Array.isArray(response.data) ? response.data : [];
++      }),
++  );
++
+   const data = configSections
+     .filter(
+       (section) =>
+@@ -119,7 +138,10 @@
+           };
+         }
+ 
+-        if (section.proxy_config_type === 'urltest') {
++        if (
++          section.proxy_config_type === 'urltest' ||
++          section.proxy_config_type === 'subscription'
++        ) {
+           const selector = proxies.find(
+             (proxy) => proxy.code === `${section['.name']}-out`,
+           );
+@@ -127,8 +149,12 @@
+             (proxy) => proxy.code === `${section['.name']}-urltest-out`,
+           );
+           // the group lists its proxy links, then its fallback links
++          const proxyLinks =
++            section.proxy_config_type === 'subscription'
++              ? (subscriptionLinks[section['.name']] ?? [])
++              : (section.urltest_proxy_links ?? []);
+           const links = [
+-            ...(section.urltest_proxy_links ?? []),
++            ...proxyLinks,
+             ...(section.urltest_fallback_links ?? []),
+           ];
+ 
+diff -ruN a/fe-app-podkop/src/podkop/methods/custom/tests/getDashboardSections.test.js b/fe-app-podkop/src/podkop/methods/custom/tests/getDashboardSections.test.js
+--- a/fe-app-podkop/src/podkop/methods/custom/tests/getDashboardSections.test.js	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/src/podkop/methods/custom/tests/getDashboardSections.test.js	2026-11-05 10:49:44.074663588 +0000
+@@ -12,7 +12,10 @@
+     .splitProxyString,
+ }));
+ vi.mock('../../shell', () => ({
+-  PodkopShellMethods: { getClashApiProxies: vi.fn() },
++  PodkopShellMethods: {
++    getClashApiProxies: vi.fn(),
++    getSubscriptionLinks: vi.fn(),
++  },
+ }));
+ 
+ const proxy = (name, extra = {}) => ({ name, history: [], ...extra });
+@@ -89,3 +92,55 @@
+     expect(await tileNames()).toEqual(['Fastest', 'A', 'main-fallback-1-out']);
+   });
+ });
++
++describe('getDashboardSections, subscription section', () => {
++  beforeEach(() => vi.clearAllMocks());
++
++  it('names the nodes by the cached subscription links, then the fallback links', async () => {
++    PodkopShellMethods.getSubscriptionLinks.mockResolvedValue({
++      success: true,
++      data: [
++        'vless://id@10.0.0.1:443#%F0%9F%87%A9%F0%9F%87%AA%20Germany',
++        'vless://id@10.0.0.2:443#Poland',
++      ],
++    });
++    mockUrlTest(
++      {
++        '.name': 'main',
++        connection_type: 'proxy',
++        proxy_config_type: 'subscription',
++        subscription_url: 'https://example.com/sub',
++        urltest_fallback_links: ['socks5://10.0.0.3:1080#Fallback'],
++      },
++      ['main-1-out', 'main-2-out', 'main-fallback-1-out'],
++    );
++
++    expect(await tileNames()).toEqual([
++      'Fastest',
++      '🇩🇪 Germany',
++      'Poland',
++      'Fallback',
++    ]);
++    expect(PodkopShellMethods.getSubscriptionLinks).toHaveBeenCalledWith(
++      'main',
++    );
++  });
++
++  it('falls back to the outbound names when the cache is unavailable', async () => {
++    PodkopShellMethods.getSubscriptionLinks.mockResolvedValue({
++      success: false,
++      error: '',
++    });
++    mockUrlTest(
++      {
++        '.name': 'main',
++        connection_type: 'proxy',
++        proxy_config_type: 'subscription',
++        subscription_url: 'https://example.com/sub',
++      },
++      ['main-1-out'],
++    );
++
++    expect(await tileNames()).toEqual(['Fastest', 'main-1-out']);
++  });
++});
+diff -ruN a/fe-app-podkop/src/podkop/methods/shell/index.ts b/fe-app-podkop/src/podkop/methods/shell/index.ts
+--- a/fe-app-podkop/src/podkop/methods/shell/index.ts	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/src/podkop/methods/shell/index.ts	2026-11-05 10:49:44.074881188 +0000
+@@ -86,4 +86,10 @@
+     ),
+   getSingBoxFeatures: async () =>
+     callBaseMethod<string[]>(Podkop.AvailableMethods.GET_SING_BOX_FEATURES),
++  getSubscriptionLinks: async (section: string) =>
++    callBaseMethod<string[]>(Podkop.AvailableMethods.GET_SUBSCRIPTION_LINKS, [
++      section,
++    ]),
++  getSubscriptionHwid: async () =>
++    callBaseMethod<string>(Podkop.AvailableMethods.GET_SUBSCRIPTION_HWID),
+ };
+diff -ruN a/fe-app-podkop/src/podkop/types.ts b/fe-app-podkop/src/podkop/types.ts
+--- a/fe-app-podkop/src/podkop/types.ts	2026-10-11 07:13:55.000000000 +0000
++++ b/fe-app-podkop/src/podkop/types.ts	2026-11-05 10:49:44.076054362 +0000
+@@ -66,6 +66,8 @@
+     CHECK_LOGS = 'check_logs',
+     GET_SYSTEM_INFO = 'get_system_info',
+     GET_SING_BOX_FEATURES = 'get_sing_box_features',
++    GET_SUBSCRIPTION_LINKS = 'get_subscription_links',
++    GET_SUBSCRIPTION_HWID = 'get_subscription_hwid',
+   }
+ 
+   export enum AvailableClashAPIMethods {
+@@ -99,6 +101,17 @@
+     urltest_download_url?: string;
+   }
+ 
++  export interface ConfigProxySubscriptionSection {
++    connection_type: 'proxy';
++    proxy_config_type: 'subscription';
++    subscription_url: string;
++    subscription_hwid_mode?: 'off' | 'auto' | 'custom';
++    subscription_hwid?: string;
++    subscription_user_agent?: string;
++    subscription_update_interval?: '1h' | '3h' | '12h' | '1d';
++    urltest_fallback_links?: string[];
++  }
++
+   export interface ConfigProxySelectorSection {
+     connection_type: 'proxy';
+     proxy_config_type: 'selector';
+@@ -132,6 +145,7 @@
+ 
+   export type ConfigBaseSection =
+     | ConfigProxyUrlTestSection
++    | ConfigProxySubscriptionSection
+     | ConfigProxySelectorSection
+     | ConfigProxyUrlSection
+     | ConfigProxyOutboundSection
+diff -ruN a/luci-app-podkop/htdocs/luci-static/resources/view/podkop/main.js b/luci-app-podkop/htdocs/luci-static/resources/view/podkop/main.js
+--- a/luci-app-podkop/htdocs/luci-static/resources/view/podkop/main.js	2026-10-11 07:13:55.000000000 +0000
++++ b/luci-app-podkop/htdocs/luci-static/resources/view/podkop/main.js	2026-11-05 10:49:44.078188183 +0000
+@@ -623,6 +623,8 @@
+     AvailableMethods2["CHECK_LOGS"] = "check_logs";
+     AvailableMethods2["GET_SYSTEM_INFO"] = "get_system_info";
+     AvailableMethods2["GET_SING_BOX_FEATURES"] = "get_sing_box_features";
++    AvailableMethods2["GET_SUBSCRIPTION_LINKS"] = "get_subscription_links";
++    AvailableMethods2["GET_SUBSCRIPTION_HWID"] = "get_subscription_hwid";
+   })(AvailableMethods = Podkop2.AvailableMethods || (Podkop2.AvailableMethods = {}));
+   let AvailableClashAPIMethods;
+   ((AvailableClashAPIMethods2) => {
+@@ -698,7 +700,11 @@
+   getSystemInfo: async () => callBaseMethod(
+     Podkop.AvailableMethods.GET_SYSTEM_INFO
+   ),
+-  getSingBoxFeatures: async () => callBaseMethod(Podkop.AvailableMethods.GET_SING_BOX_FEATURES)
++  getSingBoxFeatures: async () => callBaseMethod(Podkop.AvailableMethods.GET_SING_BOX_FEATURES),
++  getSubscriptionLinks: async (section) => callBaseMethod(Podkop.AvailableMethods.GET_SUBSCRIPTION_LINKS, [
++    section
++  ]),
++  getSubscriptionHwid: async () => callBaseMethod(Podkop.AvailableMethods.GET_SUBSCRIPTION_HWID)
+ };
+ 
+ // src/podkop/methods/custom/getDashboardSections.ts
+@@ -717,6 +723,17 @@
+       value
+     })
+   );
++  const subscriptionLinks = {};
++  await Promise.all(
++    configSections.filter(
++      (section) => section.connection_type === "proxy" && section.proxy_config_type === "subscription"
++    ).map(async (section) => {
++      const response = await PodkopShellMethods.getSubscriptionLinks(
++        section[".name"]
++      );
++      subscriptionLinks[section[".name"]] = response.success && Array.isArray(response.data) ? response.data : [];
++    })
++  );
+   const data = configSections.filter(
+     (section) => section.connection_type !== "block" && section.connection_type !== "exclusion" && section[".type"] !== "settings"
+   ).map((section) => {
+@@ -788,15 +805,16 @@
+           outbounds
+         };
+       }
+-      if (section.proxy_config_type === "urltest") {
++      if (section.proxy_config_type === "urltest" || section.proxy_config_type === "subscription") {
+         const selector = proxies.find(
+           (proxy) => proxy.code === `${section[".name"]}-out`
+         );
+         const outbound = proxies.find(
+           (proxy) => proxy.code === `${section[".name"]}-urltest-out`
+         );
++        const proxyLinks = section.proxy_config_type === "subscription" ? subscriptionLinks[section[".name"]] ?? [] : section.urltest_proxy_links ?? [];
+         const links = [
+-          ...section.urltest_proxy_links ?? [],
++          ...proxyLinks,
+           ...section.urltest_fallback_links ?? []
+         ];
+         const outbounds = (outbound?.value?.all ?? []).map((code) => proxies.find((item) => item.code === code)).map((item, index) => ({
+diff -ruN a/luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js b/luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
+--- a/luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js	2026-10-11 07:13:55.000000000 +0000
++++ b/luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js	2026-11-05 10:49:44.078451789 +0000
+@@ -2,6 +2,7 @@
+ "require form";
+ "require baseclass";
+ "require ui";
++"require fs";
+ "require tools.widgets as widgets";
+ "require view.podkop.main as main";
+ 
+@@ -26,6 +27,7 @@
+   o.value("url", _("Connection URL"));
+   o.value("selector", _("Selector"));
+   o.value("urltest", _("URLTest"));
++  o.value("subscription", _("Subscription"));
+   o.value("outbound", _("Outbound Config"));
+   o.default = "url";
+   o.depends("connection_type", "proxy");
+@@ -128,6 +130,119 @@
+     return validation.message;
+   };
+ 
++  o = section.option(
++    form.Value,
++    "subscription_url",
++    _("Subscription URL"),
++    _("Link of the subscription provided by your VPN service. The fastest node is selected automatically (URLTest)")
++  );
++  o.depends("proxy_config_type", "subscription");
++  o.rmempty = false;
++  o.placeholder = "https://example.com/sub/token";
++  o.validate = function (section_id, value) {
++    if (!value || value.length === 0) {
++      return true;
++    }
++
++    const validation = main.validateUrl(value);
++
++    if (validation.valid) {
++      return true;
++    }
++
++    return validation.message;
++  };
++
++  o = section.option(
++    form.ListValue,
++    "subscription_hwid_mode",
++    _("Subscription HWID"),
++    _("Device ID sent to the subscription server. Providers that limit the number of devices need it")
++  );
++  o.value("auto", _("Automatic (generated from this router)"));
++  o.value("custom", _("Custom"));
++  o.value("off", _("Do not send"));
++  o.default = "auto";
++  o.depends("proxy_config_type", "subscription");
++
++  o = section.option(
++    form.Value,
++    "subscription_hwid",
++    _("Custom HWID"),
++    _("Any string that identifies this device, for example 3f2a9c4e7b1d4a60")
++  );
++  o.depends({
++    proxy_config_type: "subscription",
++    subscription_hwid_mode: "custom",
++  });
++  o.rmempty = false;
++  o.validate = function (section_id, value) {
++    if (!value || value.length === 0) {
++      return _("HWID must not be empty");
++    }
++
++    if (!/^[A-Za-z0-9._-]{1,128}$/.test(value)) {
++      return _("Only letters, digits and the characters . _ - are allowed (up to 128)");
++    }
++
++    return true;
++  };
++
++  o = section.option(
++    form.DummyValue,
++    "_subscription_auto_hwid",
++    _("Automatic HWID"),
++    _("The HWID this router sends when the automatic mode is selected")
++  );
++  o.depends({
++    proxy_config_type: "subscription",
++    subscription_hwid_mode: "auto",
++  });
++  // The value returned by load() is what the dummy value shows
++  o.load = function () {
++    return fs
++      .exec("/usr/bin/podkop", ["get_subscription_hwid"])
++      .then((res) => JSON.parse(res.stdout) || "-")
++      .catch(() => "-");
++  };
++
++  o = section.option(
++    form.Value,
++    "subscription_user_agent",
++    _("Subscription User-Agent"),
++    _("Some providers return a different format depending on the client. Leave the default unless the provider says otherwise")
++  );
++  o.value("v2rayN/7.0", "v2rayN/7.0");
++  o.value("Happ/2.7.0", "Happ/2.7.0");
++  o.value("v2raytun/ios", "v2raytun/ios");
++  o.default = "v2rayN/7.0";
++  o.rmempty = false;
++  o.depends("proxy_config_type", "subscription");
++  o.validate = function (section_id, value) {
++    if (!value || value.length === 0) {
++      return true;
++    }
++
++    if (/["'\\\r\n]/.test(value)) {
++      return _("The User-Agent contains invalid characters");
++    }
++
++    return true;
++  };
++
++  o = section.option(
++    form.ListValue,
++    "subscription_update_interval",
++    _("Subscription Update Interval"),
++    _("How often the router downloads the subscription again. Podkop is reloaded only if the nodes changed")
++  );
++  o.value("1h", _("Every 1 hour"));
++  o.value("3h", _("Every 3 hours"));
++  o.value("12h", _("Every 12 hours"));
++  o.value("1d", _("Every 1 day"));
++  o.default = "12h";
++  o.depends("proxy_config_type", "subscription");
++
+   if (singBoxFeatures.includes("urltest.fallbacks")) {
+     o = section.option(
+       form.DynamicList,
+@@ -136,6 +251,7 @@
+       _("Used in this order only while none of the URLTest proxy links responds")
+     );
+     o.depends("proxy_config_type", "urltest");
++    o.depends("proxy_config_type", "subscription");
+     o.validate = function (section_id, value) {
+       // Optional
+       if (!value || value.length === 0) {
+@@ -164,6 +280,7 @@
+   o.value("5m", _("Every 5 minutes"));
+   o.default = "3m";
+   o.depends("proxy_config_type", "urltest");
++  o.depends("proxy_config_type", "subscription");
+ 
+   o = section.option(
+     form.Value,
+@@ -174,6 +291,7 @@
+   o.default = "50";
+   o.rmempty = false;
+   o.depends("proxy_config_type", "urltest");
++  o.depends("proxy_config_type", "subscription");
+   o.validate = function (section_id, value) {
+     if (!value || value.length === 0) {
+       return true;
+@@ -201,6 +319,7 @@
+   o.default = "https://www.gstatic.com/generate_204";
+   o.rmempty = false;
+   o.depends("proxy_config_type", "urltest");
++  o.depends("proxy_config_type", "subscription");
+ 
+   o.validate = function (section_id, value) {
+     if (!value || value.length === 0) {
+@@ -228,6 +347,7 @@
+     o.value("custom", _("Custom URL"));
+     o.default = "default";
+     o.depends("proxy_config_type", "urltest");
++    o.depends("proxy_config_type", "subscription");
+ 
+     o = section.option(
+       form.Value,
+@@ -241,6 +361,10 @@
+     o.default = "https://speed.cloudflare.com/__down?bytes=65536";
+     o.rmempty = false;
+     o.depends({ proxy_config_type: "urltest", urltest_download_check: "custom" });
++    o.depends({
++      proxy_config_type: "subscription",
++      urltest_download_check: "custom",
++    });
+ 
+     o.validate = function (section_id, value) {
+       if (!value || value.length === 0) {
+diff -ruN a/luci-app-podkop/po/ru/podkop.po b/luci-app-podkop/po/ru/podkop.po
+--- a/luci-app-podkop/po/ru/podkop.po	2026-10-11 07:13:55.000000000 +0000
++++ b/luci-app-podkop/po/ru/podkop.po	2026-11-05 10:49:44.078764038 +0000
+@@ -823,3 +823,72 @@
+ 
+ msgid "You can select Output Network Interface, by default autodetect"
+ msgstr "Вы можете выбрать выходной сетевой интерфейс, по умолчанию он определяется автоматически."
++
++msgid "Subscription"
++msgstr "Подписка"
++
++msgid "Subscription URL"
++msgstr "Ссылка на подписку"
++
++msgid "Link of the subscription provided by your VPN service. The fastest node is selected automatically (URLTest)"
++msgstr "Ссылка на подписку от вашего VPN-сервиса. Самая быстрая нода выбирается автоматически (URLTest)"
++
++msgid "Subscription HWID"
++msgstr "HWID подписки"
++
++msgid "Device ID sent to the subscription server. Providers that limit the number of devices need it"
++msgstr "Идентификатор устройства, который отправляется серверу подписки. Нужен провайдерам, ограничивающим число устройств"
++
++msgid "Automatic (generated from this router)"
++msgstr "Автоматический (генерируется из данных роутера)"
++
++msgid "Custom"
++msgstr "Свой"
++
++msgid "Do not send"
++msgstr "Не отправлять"
++
++msgid "Custom HWID"
++msgstr "Свой HWID"
++
++msgid "Any string that identifies this device, for example 3f2a9c4e7b1d4a60"
++msgstr "Любая строка, идентифицирующая это устройство, например 3f2a9c4e7b1d4a60"
++
++msgid "HWID must not be empty"
++msgstr "HWID не должен быть пустым"
++
++msgid "Only letters, digits and the characters . _ - are allowed (up to 128)"
++msgstr "Допустимы только буквы, цифры и символы . _ - (до 128 символов)"
++
++msgid "Automatic HWID"
++msgstr "Автоматический HWID"
++
++msgid "The HWID this router sends when the automatic mode is selected"
++msgstr "HWID, который роутер отправляет в автоматическом режиме"
++
++msgid "Subscription User-Agent"
++msgstr "User-Agent подписки"
++
++msgid "Some providers return a different format depending on the client. Leave the default unless the provider says otherwise"
++msgstr "Некоторые провайдеры отдают разный формат в зависимости от клиента. Оставьте значение по умолчанию, если провайдер не требует другого"
++
++msgid "The User-Agent contains invalid characters"
++msgstr "User-Agent содержит недопустимые символы"
++
++msgid "Subscription Update Interval"
++msgstr "Интервал обновления подписки"
++
++msgid "How often the router downloads the subscription again. Podkop is reloaded only if the nodes changed"
++msgstr "Как часто роутер заново скачивает подписку. Podkop перезагружается, только если ноды изменились"
++
++msgid "Every 1 hour"
++msgstr "Каждый час"
++
++msgid "Every 3 hours"
++msgstr "Каждые 3 часа"
++
++msgid "Every 12 hours"
++msgstr "Каждые 12 часов"
++
++msgid "Every 1 day"
++msgstr "Каждый день"
+diff -ruN a/luci-app-podkop/po/templates/podkop.pot b/luci-app-podkop/po/templates/podkop.pot
+--- a/luci-app-podkop/po/templates/podkop.pot	2026-10-11 07:13:55.000000000 +0000
++++ b/luci-app-podkop/po/templates/podkop.pot	2026-11-05 10:49:44.078868796 +0000
+@@ -1154,3 +1154,95 @@
+ #: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/settings.js:127
+ msgid "You can select Output Network Interface, by default autodetect"
+ msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription URL"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Link of the subscription provided by your VPN service. The fastest node is selected automatically (URLTest)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Device ID sent to the subscription server. Providers that limit the number of devices need it"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Automatic (generated from this router)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Custom"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Do not send"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Custom HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Any string that identifies this device, for example 3f2a9c4e7b1d4a60"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "HWID must not be empty"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Only letters, digits and the characters . _ - are allowed (up to 128)"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Automatic HWID"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "The HWID this router sends when the automatic mode is selected"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription User-Agent"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Some providers return a different format depending on the client. Leave the default unless the provider says otherwise"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "The User-Agent contains invalid characters"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Subscription Update Interval"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "How often the router downloads the subscription again. Podkop is reloaded only if the nodes changed"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 1 hour"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 3 hours"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 12 hours"
++msgstr ""
++
++#: ../luci-app-podkop/htdocs/luci-static/resources/view/podkop/section.js
++msgid "Every 1 day"
++msgstr ""
+diff -ruN a/podkop/files/usr/bin/podkop b/podkop/files/usr/bin/podkop
+--- a/podkop/files/usr/bin/podkop	2026-10-11 07:13:55.000000000 +0000
++++ b/podkop/files/usr/bin/podkop	2026-11-05 10:49:44.204138815 +0000
+@@ -20,6 +20,7 @@
+ check_required_file "$PODKOP_LIB/sing_box_config_facade.sh"
+ check_required_file "$PODKOP_LIB/logging.sh"
+ check_required_file "$PODKOP_LIB/rulesets.sh"
++check_required_file "$PODKOP_LIB/subscription.sh"
+ . /lib/functions.sh
+ . /lib/config/uci.sh
+ . /lib/functions/network.sh
+@@ -30,6 +31,7 @@
+ . "$PODKOP_LIB/sing_box_config_facade.sh"
+ . "$PODKOP_LIB/logging.sh"
+ . "$PODKOP_LIB/rulesets.sh"
++. "$PODKOP_LIB/subscription.sh"
+ 
+ config_load "$PODKOP_CONFIG"
+ 
+@@ -78,23 +80,24 @@
+     if has_outbound_section; then
+         log "Outbound section found" "debug"
+     else
+-        log "Outbound section not found. Please check your configuration file (missing proxy_string, selector_proxy_links, urltest_proxy_links, outbound_json, or interface). Aborted." "error"
++        log "Outbound section not found. Please check your configuration file (missing proxy_string, selector_proxy_links, urltest_proxy_links, subscription_url, outbound_json, or interface). Aborted." "error"
+         exit 1
+     fi
+ }
+ 
+ _check_outbound_section() {
+     local section="$1"
+-    local proxy_string interface outbound_json urltest_proxy_links
++    local proxy_string interface outbound_json urltest_proxy_links subscription_url
+ 
+     config_get proxy_string "$section" "proxy_string"
+     config_get selector_proxy_links "$section" "selector_proxy_links"
+     config_get urltest_proxy_links "$section" "urltest_proxy_links"
++    config_get subscription_url "$section" "subscription_url"
+     config_get outbound_json "$section" "outbound_json"
+     config_get interface "$section" "interface"
+ 
+     if [ -n "$proxy_string" ] || [ -n "$selector_proxy_links" ] || [ -n "$urltest_proxy_links" ] ||
+-        [ -n "$outbound_json" ] || [ -n "$interface" ]; then
++        [ -n "$subscription_url" ] || [ -n "$outbound_json" ] || [ -n "$interface" ]; then
+         section_exists=0
+     fi
+ }
+@@ -134,6 +137,8 @@
+     # sing-box
+     sing_box_init_config
+     config_foreach add_cron_job "section"
++    remove_subscription_cron_job
++    config_foreach add_subscription_cron_job "section"
+     /etc/init.d/sing-box start
+ 
+     log "Nice"
+@@ -154,6 +159,7 @@
+     fi
+ 
+     remove_cron_job
++    remove_subscription_cron_job
+ 
+     rm -f "$TMP_RULESET_FOLDER"/*
+ 
+@@ -678,8 +684,8 @@
+             config="$(sing_box_cm_add_selector_outbound "$config" "$selector_tag" "$selector_outbounds" \
+                 "$default_outbound")"
+             ;;
+-        urltest)
+-            log "Detected proxy configuration type: urltest" "debug"
++        urltest | subscription)
++            log "Detected proxy configuration type: $proxy_config_type" "debug"
+             local urltest_proxy_links udp_over_tcp i urltest_tag selector_tag outbound_tag outbound_tags \
+                 urltest_outbounds selector_outbounds urltest_check_interval urltest_tolerance urltest_testing_url \
+                 urltest_fallback_links fallback_tags urltest_fallbacks urltest_download_check urltest_download_url
+@@ -692,6 +698,14 @@
+             config_get urltest_download_check "$section" "urltest_download_check" "default"
+             config_get urltest_download_url "$section" "urltest_download_url"
+ 
++            if [ "$proxy_config_type" = "subscription" ]; then
++                if ! subscription_resolve "$section"; then
++                    log "No links of the subscription of the $section section: it is unreachable and has no cache. Aborted." "fatal"
++                    exit 1
++                fi
++                urltest_proxy_links="$SUBSCRIPTION_LINKS"
++            fi
++
+             if [ -z "$urltest_proxy_links" ]; then
+                 log "URLTest proxy links is not set. Aborted." "fatal"
+                 exit 1
+@@ -1889,6 +1903,8 @@
+         -e 's/\(list urltest_proxy_links\).*/\1 '\''MASKED'\''/g' \
+         -e 's/\(list urltest_fallback_links\).*/\1 '\''MASKED'\''/g' \
+         -e 's/\(list selector_proxy_links\).*/\1 '\''MASKED'\''/g' \
++        -e 's/\(option subscription_url\).*/\1 '\''MASKED'\''/g' \
++        -e 's/\(option subscription_hwid\) .*/\1 '\''MASKED'\''/g' \
+         -e "s@\\(option dns_server '[^/]*\\)/[^']*'@\\1/MASKED'@g" \
+         -e "s@\\(option domain_resolver_dns_server '[^/]*\\)/[^']*'@\\1/MASKED'@g" \
+         -e 's/\(option yacd_secret_key\).*/\1 '\''MASKED'\''/g' \
+@@ -2709,6 +2725,9 @@
+     restart                 Restart podkop service
+     main                    Run main podkop process
+     list_update             Update domain lists
++    subscription_update     Update subscriptions [section] and reload podkop if links changed
++    get_subscription_links  Get the cached subscription links of a section in JSON format
++    get_subscription_hwid   Get the automatic HWID of this router in JSON format
+     check_proxy             Check proxy connectivity
+     check_nft               Check NFT rules
+     check_nft_rules         Check NFT rules status
+@@ -2750,6 +2769,15 @@
+ list_update)
+     list_update
+     ;;
++subscription_update)
++    subscription_update "$2"
++    ;;
++get_subscription_links)
++    subscription_get_links_json "$2"
++    ;;
++get_subscription_hwid)
++    printf '"%s"\n' "$(subscription_generate_hwid)"
++    ;;
+ check_proxy)
+     check_proxy
+     ;;
+diff -ruN a/podkop/files/usr/lib/constants.sh b/podkop/files/usr/lib/constants.sh
+--- a/podkop/files/usr/lib/constants.sh	2026-10-11 07:13:55.000000000 +0000
++++ b/podkop/files/usr/lib/constants.sh	2026-11-05 10:49:44.206203522 +0000
+@@ -14,6 +14,11 @@
+ COREUTILS_BASE64_REQUIRED_VERSION="9.7"
+ RT_TABLE_NAME="podkop"
+ 
++## Subscriptions
++SUBSCRIPTION_CACHE_DIR="/etc/podkop/subscriptions"
++SUBSCRIPTION_DEFAULT_USER_AGENT="v2rayN/7.0"
++SUBSCRIPTION_FETCH_TIMEOUT=20
++
+ ## nft
+ NFT_TABLE_NAME="PodkopTable"
+ NFT_LOCALV4_SET_NAME="localv4"
+diff -ruN a/podkop/files/usr/lib/subscription.sh b/podkop/files/usr/lib/subscription.sh
+--- a/podkop/files/usr/lib/subscription.sh	1970-01-01 00:00:00.000000000 +0000
++++ b/podkop/files/usr/lib/subscription.sh	2026-11-05 10:49:44.207486065 +0000
+@@ -0,0 +1,331 @@
++# shellcheck shell=ash
++# Subscription support: a section with proxy_config_type 'subscription' gets its
++# proxy links from a subscription URL. The links are cached on flash, so podkop
++# can start while the subscription server is unreachable.
++
++# Result of subscription_resolve (space-separated links)
++SUBSCRIPTION_LINKS=""
++# Set to 1 by subscription_update: the cache is already fresh, do not download again
++SUBSCRIPTION_NO_FETCH=0
++# Set to 1 when a download changed the cached links
++SUBSCRIPTION_CHANGED=0
++# Section limiting subscription_update (all sections when empty)
++SUBSCRIPTION_TARGET=""
++
++# Returns the path of the links cache of the section
++subscription_cache_file() {
++    echo "$SUBSCRIPTION_CACHE_DIR/$1.links"
++}
++
++# Generates a stable HWID of this router
++subscription_generate_hwid() {
++    local mac
++
++    mac="$(cat /sys/class/net/br-lan/address 2> /dev/null)"
++    [ -z "$mac" ] && mac="$(cat /sys/class/net/eth0/address 2> /dev/null)"
++    [ -z "$mac" ] && mac="$(cat /sys/class/net/*/address 2> /dev/null | grep -v '^00:00:00:00:00:00$' | head -n 1)"
++    [ -z "$mac" ] && mac="$(cat /tmp/sysinfo/model 2> /dev/null)"
++
++    printf 'podkop:%s' "$mac" | sha256sum | cut -c1-32
++}
++
++# Prints the HWID the section sends to the subscription server (nothing if disabled)
++subscription_get_hwid() {
++    local section="$1"
++    local mode hwid
++
++    config_get mode "$section" "subscription_hwid_mode" "auto"
++    case "$mode" in
++    off) ;;
++    custom)
++        config_get hwid "$section" "subscription_hwid"
++        echo "$hwid"
++        ;;
++    *)
++        subscription_generate_hwid
++        ;;
++    esac
++}
++
++# Downloads the subscription into a file; prints the first line of curl's error, if any
++# Arguments: url, output file, hwid (may be empty), user agent, timeout, proxy address (may be empty)
++_subscription_download() {
++    local url="$1"
++    local output="$2"
++    local hwid="$3"
++    local user_agent="$4"
++    local timeout="$5"
++    local proxy="$6"
++
++    local os_version device_model error_file
++    os_version="$(grep OPENWRT_RELEASE /etc/os-release 2> /dev/null | cut -d'"' -f2)"
++    device_model="$(cat /tmp/sysinfo/model 2> /dev/null)"
++    error_file="$output.err"
++
++    set -- -fsSL --connect-timeout 8 --max-time "$timeout" -A "$user_agent" -o "$output"
++    if [ -n "$hwid" ]; then
++        set -- "$@" -H "x-hwid: $hwid" -H "x-device-os: OpenWrt" \
++            -H "x-ver-os: ${os_version:-OpenWrt}" -H "x-device-model: ${device_model:-router}"
++    fi
++    [ -n "$proxy" ] && set -- "$@" -x "http://$proxy"
++
++    curl "$@" "$url" 2> "$error_file"
++    local status=$?
++    head -n 1 "$error_file"
++    rm -f "$error_file"
++
++    return "$status"
++}
++
++# Prints the first non-whitespace character of a file
++_subscription_first_char() {
++    sed -n '/[^[:space:]]/{s/^[[:space:]]*\(.\).*/\1/p;q}' "$1"
++}
++
++# Prints the links found in a downloaded subscription, one per line.
++# Understands plain text, base64 and JSON ("links" array) subscriptions.
++_subscription_extract_links() {
++    local file="$1"
++    local first data pad
++
++    first="$(_subscription_first_char "$file")"
++    case "$first" in
++    '{' | '[')
++        jq -r 'if type == "object" then ((.links // []) + ((.ssConfLinks // {}) | to_entries | map(.value))) else . end
++            | if type == "array" then .[] else empty end
++            | select(type == "string")' "$file" 2> /dev/null
++        ;;
++    *)
++        if grep -q '://' "$file"; then
++            cat "$file"
++        else
++            data="$(tr -d ' \t\r\n' < "$file" | tr '_-' '/+')"
++            pad=$(((4 - ${#data} % 4) % 4))
++            while [ "$pad" -gt 0 ]; do
++                data="${data}="
++                pad=$((pad - 1))
++            done
++            printf '%s' "$data" | base64 -d 2> /dev/null
++        fi
++        ;;
++    esac
++}
++
++# Reads links from stdin and prints the ones podkop can use, one per line
++_subscription_filter_links() {
++    local link scheme transport has_decode_link=0
++
++    sing_box_has_feature "tools.decode-link" && has_decode_link=1
++
++    tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/[[:space:]]/%20/g' | awk '!seen[$0]++' |
++        while IFS= read -r link; do
++            [ -z "$link" ] && continue
++
++            scheme="$(url_get_scheme "$link")"
++            case "$scheme" in
++            vless | trojan | ss | hysteria2 | hy2) ;;
++            *)
++                log "Skipped a subscription link: unsupported protocol '$scheme'" "debug"
++                continue
++                ;;
++            esac
++
++            if ! echo "$link" | grep -Eq '^[a-z0-9]+://[^@/?#]+@[^/?#]+:[0-9]+'; then
++                log "Skipped a subscription link: unsupported $scheme link format" "debug"
++                continue
++            fi
++
++            if [ "$scheme" = "vless" ] || [ "$scheme" = "trojan" ]; then
++                transport="$(url_get_query_param "$(url_strip_fragment "$link")" "type")"
++                case "$transport" in
++                "" | tcp | raw | ws | grpc) ;;
++                xhttp | splithttp)
++                    if [ "$has_decode_link" -ne 1 ]; then
++                        log "Skipped a subscription link: the installed sing-box does not support the xhttp transport" "debug"
++                        continue
++                    fi
++                    ;;
++                *)
++                    log "Skipped a subscription link: unsupported transport '$transport'" "debug"
++                    continue
++                    ;;
++                esac
++            fi
++
++            echo "$link"
++        done
++}
++
++# Downloads the subscription of the section and refreshes its links cache.
++# Returns 0 when the subscription was downloaded and has usable links.
++subscription_refresh() {
++    local section="$1"
++    local url user_agent timeout hwid proxy_address raw links cache cache_tmp count
++
++    config_get url "$section" "subscription_url"
++    config_get user_agent "$section" "subscription_user_agent" "$SUBSCRIPTION_DEFAULT_USER_AGENT"
++    timeout="${2:-$SUBSCRIPTION_FETCH_TIMEOUT}"
++
++    if [ -z "$url" ]; then
++        log "Subscription URL of the $section section is not set" "error"
++        return 1
++    fi
++
++    hwid="$(subscription_get_hwid "$section")"
++    proxy_address="$(get_service_proxy_address)"
++    raw="$(mktemp)"
++    links="$(mktemp)"
++
++    local attempt error downloaded=1
++    for attempt in "$proxy_address" ""; do
++        # without a proxy there is only one attempt
++        [ -z "$attempt" ] && [ -n "$proxy_address" ] && log "Retrying the subscription of $section without proxy" "debug"
++        : > "$raw"
++        error="$(_subscription_download "$url" "$raw" "$hwid" "$user_agent" "$timeout" "$attempt")"
++        if [ -s "$raw" ]; then
++            downloaded=0
++            break
++        fi
++        log "Cannot download the subscription of $section: ${error:-empty response}" "warn"
++        [ -z "$proxy_address" ] && break
++    done
++
++    if [ "$downloaded" -ne 0 ]; then
++        rm -f "$raw" "$links"
++        return 1
++    fi
++
++    _subscription_extract_links "$raw" | _subscription_filter_links > "$links"
++
++    # A JSON page of a panel may only point to the real subscription URL
++    if [ ! -s "$links" ] && [ "$(_subscription_first_char "$raw")" = "{" ]; then
++        local real_url
++        real_url="$(jq -r '.subscriptionUrl // empty' "$raw" 2> /dev/null)"
++        if [ -n "$real_url" ] && [ "$real_url" != "$url" ]; then
++            : > "$raw"
++            error="$(_subscription_download "$real_url" "$raw" "$hwid" "$user_agent" "$timeout" "$proxy_address")"
++            [ -s "$raw" ] || error="$(_subscription_download "$real_url" "$raw" "$hwid" "$user_agent" "$timeout" "")"
++            _subscription_extract_links "$raw" | _subscription_filter_links > "$links"
++        fi
++    fi
++
++    count="$(grep -c '' "$links")"
++    if [ "$count" -eq 0 ]; then
++        log "The subscription of $section contains no supported links (vless, trojan, ss, hysteria2). Check the subscription URL, HWID and User-Agent settings" "error"
++        rm -f "$raw" "$links"
++        return 1
++    fi
++
++    cache="$(subscription_cache_file "$section")"
++    if [ "$(md5sum < "$links")" != "$({ md5sum < "$cache"; } 2> /dev/null)" ]; then
++        mkdir -p "$SUBSCRIPTION_CACHE_DIR"
++        chmod 700 "$SUBSCRIPTION_CACHE_DIR"
++        cache_tmp="$cache.tmp"
++        cp "$links" "$cache_tmp" && chmod 600 "$cache_tmp" && mv "$cache_tmp" "$cache"
++        SUBSCRIPTION_CHANGED=1
++        log "Subscription of $section updated: $count links" "info"
++    else
++        log "Subscription of $section is up to date: $count links" "debug"
++    fi
++
++    rm -f "$raw" "$links"
++    return 0
++}
++
++# Fills SUBSCRIPTION_LINKS with the links of the section.
++# Downloads the subscription first; falls back to the cache when it is unreachable.
++subscription_resolve() {
++    local section="$1"
++    local cache
++
++    SUBSCRIPTION_LINKS=""
++
++    cache="$(subscription_cache_file "$section")"
++
++    if [ "$SUBSCRIPTION_NO_FETCH" -ne 1 ]; then
++        if ! subscription_refresh "$section" 10 && [ -s "$cache" ]; then
++            log "Using the cached links of the $section section subscription" "warn"
++        fi
++    fi
++
++    [ -s "$cache" ] || return 1
++
++    SUBSCRIPTION_LINKS="$(tr '\n' ' ' < "$cache")"
++}
++
++# Prints the cached links of the section as a JSON array (used by LuCI)
++subscription_get_links_json() {
++    local cache
++    cache="$(subscription_cache_file "$1")"
++
++    if [ -s "$cache" ]; then
++        jq -R -s -c 'split("\n") | map(select(length > 0))' "$cache"
++    else
++        echo "[]"
++    fi
++}
++
++_subscription_update_section() {
++    local section="$1"
++    local connection_type proxy_config_type
++
++    [ -n "$SUBSCRIPTION_TARGET" ] && [ "$SUBSCRIPTION_TARGET" != "$section" ] && return 0
++
++    config_get connection_type "$section" "connection_type"
++    config_get proxy_config_type "$section" "proxy_config_type"
++    [ "$connection_type" = "proxy" ] && [ "$proxy_config_type" = "subscription" ] || return 0
++
++    echolog "🔄 Updating the subscription of the $section section..."
++    if subscription_refresh "$section"; then
++        echolog "✅ Subscription of $section downloaded"
++    else
++        echolog "❌ Subscription of $section was not updated" "error"
++    fi
++}
++
++# Updates the subscriptions (of one section or of all) and reloads podkop if the links changed
++subscription_update() {
++    SUBSCRIPTION_TARGET="$1"
++    SUBSCRIPTION_CHANGED=0
++
++    config_foreach _subscription_update_section "section"
++
++    if [ "$SUBSCRIPTION_CHANGED" -eq 1 ]; then
++        echolog "Subscription links changed. Reloading podkop"
++        SUBSCRIPTION_NO_FETCH=1
++        reload
++    else
++        echolog "Subscription links are unchanged"
++    fi
++}
++
++add_subscription_cron_job() {
++    local section="$1"
++    local connection_type proxy_config_type interval schedule
++
++    config_get connection_type "$section" "connection_type"
++    config_get proxy_config_type "$section" "proxy_config_type"
++    [ "$connection_type" = "proxy" ] && [ "$proxy_config_type" = "subscription" ] || return 0
++
++    config_get interval "$section" "subscription_update_interval" "12h"
++    case "$interval" in
++    "1h") schedule="23 * * * *" ;;
++    "3h") schedule="23 */3 * * *" ;;
++    "12h") schedule="23 */12 * * *" ;;
++    "1d") schedule="23 9 * * *" ;;
++    *)
++        log "Invalid subscription_update_interval value of $section: $interval" "warn"
++        return 0
++        ;;
++    esac
++
++    (
++        crontab -l 2> /dev/null
++        echo "$schedule /usr/bin/podkop subscription_update $section"
++    ) | crontab -
++    log "The subscription cron job of $section has been created: $schedule" "info"
++}
++
++remove_subscription_cron_job() {
++    (crontab -l 2> /dev/null | grep -v "/usr/bin/podkop subscription_update") | crontab -
++}
