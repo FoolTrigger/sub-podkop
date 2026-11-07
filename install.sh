@@ -1,6 +1,6 @@
 #!/bin/sh
 # rtr-subs: unofficial add-on for Podkop 0.7.24 on OpenWrt
-#   1. auto-installs Podkop v0.7.24 directly from GitHub releases if missing;
+#   1. auto-installs Podkop 0.7.24 directly from GitHub releases if missing;
 #   2. adds subscription support (URL, HWID, update interval) in the Podkop UI;
 #   3. installs the podkop-engine sing-box core (REALITY compatible with modern Xray servers).
 #
@@ -15,11 +15,10 @@
 
 set -eu
 
-ADDON_VERSION="1.2.0"
+ADDON_VERSION="1.3.0"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PODKOP_REPO="itdoginfo/podkop"
-PODKOP_TAG="${PODKOP_TAG:-v0.7.24}"
-PODKOP_VER_NUM="${PODKOP_TAG#v}"
+PODKOP_TAG="${PODKOP_TAG:-0.7.24}"
 PE_VERSION="${PE_VERSION:-1.13.21-r15}"
 PE_FLAVOR="${PE_FLAVOR:-podkop-engine}"
 PE_REPO="podkop-net/podkop-engine"
@@ -115,120 +114,57 @@ install_podkop_base() {
     PK_WORK="$WORK/pk_pkgs"
     mkdir -p "$PK_WORK"
 
+    # В репозитории itdoginfo/podkop тег называется "0.7.24" (без "v")
+    TAG_CLEAN="${PODKOP_TAG#v}"
+    BASE_DL="https://github.com/$PODKOP_REPO/releases/download/$TAG_CLEAN"
+
     if command -v apk > /dev/null 2>&1; then
         PKG_EXT="apk"
         say "Обновляю списки пакетов (apk update)..."
         apk update || warn "apk update завершился с предупреждением"
+        PKGS="
+podkop-${TAG_CLEAN}-r1.apk
+luci-app-podkop-${TAG_CLEAN}-r1.apk
+luci-i18n-podkop-ru-${TAG_CLEAN}.apk
+"
     elif command -v opkg > /dev/null 2>&1; then
         PKG_EXT="ipk"
         say "Обновляю списки пакетов (opkg update)..."
         opkg update || warn "opkg update завершился с предупреждением"
+        PKGS="
+podkop-v${TAG_CLEAN}-r1-all.ipk
+luci-app-podkop-v${TAG_CLEAN}-r1-all.ipk
+luci-i18n-podkop-ru-${TAG_CLEAN}.ipk
+"
     else
         die "не найден ни opkg, ни apk"
     fi
 
-    # 1. Пробуем получить точный список файлов из GitHub API для тега v0.7.24
-    URLS=""
-    if wget -qO "$PK_WORK/release.json" "https://api.github.com/repos/$PODKOP_REPO/releases/tags/$PODKOP_TAG" 2> /dev/null; then
-        URLS="$(grep -o "https://[^\"[:space:]]*\\.$PKG_EXT" "$PK_WORK/release.json" 2> /dev/null || true)"
-    fi
-
-    # 2. Если GitHub API недоступен (Rate Limit) или не дал ссылок, формируем прямые URL на ассеты релиза
-    if [ -z "$URLS" ]; then
-        BASE_DL="https://github.com/$PODKOP_REPO/releases/download/$PODKOP_TAG"
-        if [ "$PKG_EXT" = "apk" ]; then
-            # В APK-пакетах OpenWrt (24.10+/25.12+) используется суффикс -r1:
-            URLS="
-$BASE_DL/podkop-${PODKOP_VER_NUM}-r1.apk
-$BASE_DL/luci-app-podkop-${PODKOP_VER_NUM}-r1.apk
-$BASE_DL/luci-i18n-podkop-ru-${PODKOP_VER_NUM}-r1.apk
-$BASE_DL/podkop_${PODKOP_VER_NUM}-r1_all.apk
-$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}-r1_all.apk
-$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}-r1_all.apk
-$BASE_DL/podkop_${PODKOP_VER_NUM}_all.apk
-$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}_all.apk
-$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}_all.apk
-"
-        else
-            URLS="
-$BASE_DL/podkop_${PODKOP_VER_NUM}-r1_all.ipk
-$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}-r1_all.ipk
-$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}-r1_all.ipk
-$BASE_DL/podkop_${PODKOP_VER_NUM}_all.ipk
-$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}_all.ipk
-$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}_all.ipk
-$BASE_DL/podkop-${PODKOP_VER_NUM}-r1.ipk
-$BASE_DL/luci-app-podkop-${PODKOP_VER_NUM}-r1.ipk
-$BASE_DL/luci-i18n-podkop-ru-${PODKOP_VER_NUM}-r1.ipk
-"
-        fi
-    fi
-
-    DL_COUNT=0
-    for u in $URLS; do
-        fname="$(basename "$u")"
-        # Пропускаем, если пакет этого типа (podkop / luci-app / luci-i18n) уже скачан
-        case "$fname" in
-            luci-i18n-podkop-ru*) [ -f "$PK_WORK/got_i18n" ] && continue ;;
-            luci-app-podkop*)     [ -f "$PK_WORK/got_luci" ] && continue ;;
-            podkop*)              [ -f "$PK_WORK/got_base" ] && continue ;;
-        esac
-
-        if wget -qO "$PK_WORK/$fname" "$u" 2> /dev/null && [ -s "$PK_WORK/$fname" ]; then
-            say "Скачан пакет: $fname"
-            DL_COUNT=$((DL_COUNT + 1))
-            case "$fname" in
-                luci-i18n-podkop-ru*) touch "$PK_WORK/got_i18n" ;;
-                luci-app-podkop*)     touch "$PK_WORK/got_luci" ;;
-                podkop*)              touch "$PK_WORK/got_base" ;;
-            esac
-        else
-            rm -f "$PK_WORK/$fname"
-        fi
+    for fname in $PKGS; do
+        url="$BASE_DL/$fname"
+        say "Скачиваю $fname..."
+        wget -qO "$PK_WORK/$fname" "$url" || die "не удалось скачать $url"
+        [ -s "$PK_WORK/$fname" ] || die "скачанный файл $fname пуст"
     done
 
-    # 3. Если в релизе v0.7.24 нет готовых .apk пакетов (только .ipk), конвертируем/распаковываем .ipk для систем с apk
-    if [ "$DL_COUNT" -eq 0 ] && [ "$PKG_EXT" = "apk" ]; then
-        warn "Пакеты .apk в релизе $PODKOP_TAG не найдены. Скачиваю универсальные пакеты .ipk..."
-        BASE_DL="https://github.com/$PODKOP_REPO/releases/download/$PODKOP_TAG"
-        # Устанавливаем зависимости Podkop через apk заранее:
-        say "Устанавливаю системные зависимости через apk..."
-        apk add curl jq kmod-nft-tproxy ip-full conntrack-tools coreutils-base64 sing-box > /dev/null 2>&1 \
-            || apk add curl jq kmod-nft-tproxy ip-full coreutils-base64 > /dev/null 2>&1 || true
-
-        for pkg_prefix in "podkop" "luci-app-podkop" "luci-i18n-podkop-ru"; do
-            for cand in \
-                "${pkg_prefix}_${PODKOP_VER_NUM}-r1_all.ipk" \
-                "${pkg_prefix}_${PODKOP_VER_NUM}_all.ipk" \
-                "${pkg_prefix}_${PODKOP_VER_NUM}-1_all.ipk"; do
-                if wget -qO "$PK_WORK/$cand" "$BASE_DL/$cand" 2> /dev/null && [ -s "$PK_WORK/$cand" ]; then
-                    say "Распаковываю $cand в систему..."
-                    mkdir -p "$PK_WORK/extract"
-                    tar xzf "$PK_WORK/$cand" -C "$PK_WORK/extract"
-                    [ -f "$PK_WORK/extract/data.tar.gz" ] && tar xzf "$PK_WORK/extract/data.tar.gz" -C "${ROOT:-/}"
-                    if [ -f "$PK_WORK/extract/control.tar.gz" ]; then
-                        mkdir -p "$PK_WORK/extract/ctrl"
-                        tar xzf "$PK_WORK/extract/control.tar.gz" -C "$PK_WORK/extract/ctrl"
-                        if [ -f "$PK_WORK/extract/ctrl/postinst" ]; then
-                            sh "$PK_WORK/extract/ctrl/postinst" > /dev/null 2>&1 || true
-                        fi
-                    fi
-                    rm -rf "$PK_WORK/extract"
-                    DL_COUNT=$((DL_COUNT + 1))
-                    break
-                fi
-            done
-        done
-        [ "$DL_COUNT" -gt 0 ] && return 0
-    fi
-
-    [ "$DL_COUNT" -gt 0 ] || die "не удалось скачать пакеты Podkop $PODKOP_TAG с GitHub"
-
+    say "Устанавливаю пакеты Podkop $TAG_CLEAN..."
     if [ "$PKG_EXT" = "apk" ]; then
-        apk add --allow-untrusted "$PK_WORK"/*.apk || die "ошибка apk add при установке пакетов Podkop"
+        apk add --allow-untrusted \
+            "$PK_WORK/podkop-${TAG_CLEAN}-r1.apk" \
+            "$PK_WORK/luci-app-podkop-${TAG_CLEAN}-r1.apk" \
+            "$PK_WORK/luci-i18n-podkop-ru-${TAG_CLEAN}.apk" \
+            || die "ошибка установки пакетов Podkop через apk"
     else
-        opkg install "$PK_WORK"/podkop*.ipk "$PK_WORK"/luci-app-podkop*.ipk "$PK_WORK"/luci-i18n-podkop-ru*.ipk \
-            || die "ошибка opkg install при установке пакетов Podkop"
+        # В OpenWrt 23.05/24.10 с opkg пакет dnsmasq нужно заменить на dnsmasq-full, если этого требует podkop
+        if opkg list-installed | grep -q '^dnsmasq '; then
+            say "Заменяю стандартный dnsmasq на dnsmasq-full..."
+            opkg install dnsmasq-full --download-only && opkg remove dnsmasq && opkg install dnsmasq-full --cache . && rm -f *.ipk || true
+        fi
+        opkg install \
+            "$PK_WORK/podkop-v${TAG_CLEAN}-r1-all.ipk" \
+            "$PK_WORK/luci-app-podkop-v${TAG_CLEAN}-r1-all.ipk" \
+            "$PK_WORK/luci-i18n-podkop-ru-${TAG_CLEAN}.ipk" \
+            || die "ошибка установки пакетов Podkop через opkg"
     fi
 }
 
