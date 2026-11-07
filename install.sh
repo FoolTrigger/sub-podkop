@@ -1,6 +1,6 @@
 #!/bin/sh
 # rtr-subs: unofficial add-on for Podkop 0.7.24 on OpenWrt
-#   1. auto-installs Podkop v0.7.24 if missing or version mismatches;
+#   1. auto-installs Podkop v0.7.24 directly from GitHub releases if missing;
 #   2. adds subscription support (URL, HWID, update interval) in the Podkop UI;
 #   3. installs the podkop-engine sing-box core (REALITY compatible with modern Xray servers).
 #
@@ -15,10 +15,11 @@
 
 set -eu
 
-ADDON_VERSION="1.1.0"
+ADDON_VERSION="1.2.0"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
-PODKOP_TARGET_VERSION="v0.7.24"
-PODKOP_INSTALL_URL="https://raw.githubusercontent.com/itdoginfo/podkop/refs/heads/main/install.sh"
+PODKOP_REPO="itdoginfo/podkop"
+PODKOP_TAG="${PODKOP_TAG:-v0.7.24}"
+PODKOP_VER_NUM="${PODKOP_TAG#v}"
 PE_VERSION="${PE_VERSION:-1.13.21-r15}"
 PE_FLAVOR="${PE_FLAVOR:-podkop-engine}"
 PE_REPO="podkop-net/podkop-engine"
@@ -92,15 +93,143 @@ if [ "$DO_UNINSTALL" = "1" ]; then
     exit 0
 fi
 
+detect_arch() {
+    arch=""
+    if [ -f "$ROOT/etc/openwrt_release" ]; then
+        arch="$(sed -n "s/^DISTRIB_ARCH=['\"]\?\([^'\"]*\)['\"]\?/\1/p" "$ROOT/etc/openwrt_release" | head -n 1)"
+    fi
+    if [ -z "$arch" ] && [ -f "$ROOT/etc/os-release" ]; then
+        arch="$(sed -n 's/^OPENWRT_ARCH=["'\'']\?\([^"'\'']*\)["'\'']\?/\1/p' "$ROOT/etc/os-release" | head -n 1)"
+    fi
+    if [ -z "$arch" ] && command -v opkg > /dev/null 2>&1; then
+        arch="$(opkg print-architecture 2> /dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $3, $2}' | sort -n | tail -n 1 | cut -d' ' -f2)"
+    fi
+    if [ -z "$arch" ] && command -v apk > /dev/null 2>&1; then
+        arch="$(apk --print-arch 2> /dev/null)"
+    fi
+    printf '%s' "$arch"
+}
+
 install_podkop_base() {
-    say "Скачиваю и устанавливаю базовый Podkop ($PODKOP_TARGET_VERSION)..."
-    wget -qO "$WORK/pk_install.sh" "$PODKOP_INSTALL_URL" \
-        || die "не удалось скачать официальный установщик Podkop ($PODKOP_INSTALL_URL)"
+    say "Устанавливаю базовый Podkop ($PODKOP_TAG)..."
+    PK_WORK="$WORK/pk_pkgs"
+    mkdir -p "$PK_WORK"
 
-    # Фиксируем целевую версию v0.7.24 вместо releases/latest
-    sed -i "s|releases/latest|releases/tags/$PODKOP_TARGET_VERSION|g" "$WORK/pk_install.sh"
+    if command -v apk > /dev/null 2>&1; then
+        PKG_EXT="apk"
+        say "Обновляю списки пакетов (apk update)..."
+        apk update || warn "apk update завершился с предупреждением"
+    elif command -v opkg > /dev/null 2>&1; then
+        PKG_EXT="ipk"
+        say "Обновляю списки пакетов (opkg update)..."
+        opkg update || warn "opkg update завершился с предупреждением"
+    else
+        die "не найден ни opkg, ни apk"
+    fi
 
-    sh "$WORK/pk_install.sh" || die "не удалось установить базовый Podkop $PODKOP_TARGET_VERSION"
+    # 1. Пробуем получить точный список файлов из GitHub API для тега v0.7.24
+    URLS=""
+    if wget -qO "$PK_WORK/release.json" "https://api.github.com/repos/$PODKOP_REPO/releases/tags/$PODKOP_TAG" 2> /dev/null; then
+        URLS="$(grep -o "https://[^\"[:space:]]*\\.$PKG_EXT" "$PK_WORK/release.json" 2> /dev/null || true)"
+    fi
+
+    # 2. Если GitHub API недоступен (Rate Limit) или не дал ссылок, формируем прямые URL на ассеты релиза
+    if [ -z "$URLS" ]; then
+        BASE_DL="https://github.com/$PODKOP_REPO/releases/download/$PODKOP_TAG"
+        if [ "$PKG_EXT" = "apk" ]; then
+            # В APK-пакетах OpenWrt (24.10+/25.12+) используется суффикс -r1:
+            URLS="
+$BASE_DL/podkop-${PODKOP_VER_NUM}-r1.apk
+$BASE_DL/luci-app-podkop-${PODKOP_VER_NUM}-r1.apk
+$BASE_DL/luci-i18n-podkop-ru-${PODKOP_VER_NUM}-r1.apk
+$BASE_DL/podkop_${PODKOP_VER_NUM}-r1_all.apk
+$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}-r1_all.apk
+$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}-r1_all.apk
+$BASE_DL/podkop_${PODKOP_VER_NUM}_all.apk
+$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}_all.apk
+$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}_all.apk
+"
+        else
+            URLS="
+$BASE_DL/podkop_${PODKOP_VER_NUM}-r1_all.ipk
+$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}-r1_all.ipk
+$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}-r1_all.ipk
+$BASE_DL/podkop_${PODKOP_VER_NUM}_all.ipk
+$BASE_DL/luci-app-podkop_${PODKOP_VER_NUM}_all.ipk
+$BASE_DL/luci-i18n-podkop-ru_${PODKOP_VER_NUM}_all.ipk
+$BASE_DL/podkop-${PODKOP_VER_NUM}-r1.ipk
+$BASE_DL/luci-app-podkop-${PODKOP_VER_NUM}-r1.ipk
+$BASE_DL/luci-i18n-podkop-ru-${PODKOP_VER_NUM}-r1.ipk
+"
+        fi
+    fi
+
+    DL_COUNT=0
+    for u in $URLS; do
+        fname="$(basename "$u")"
+        # Пропускаем, если пакет этого типа (podkop / luci-app / luci-i18n) уже скачан
+        case "$fname" in
+            luci-i18n-podkop-ru*) [ -f "$PK_WORK/got_i18n" ] && continue ;;
+            luci-app-podkop*)     [ -f "$PK_WORK/got_luci" ] && continue ;;
+            podkop*)              [ -f "$PK_WORK/got_base" ] && continue ;;
+        esac
+
+        if wget -qO "$PK_WORK/$fname" "$u" 2> /dev/null && [ -s "$PK_WORK/$fname" ]; then
+            say "Скачан пакет: $fname"
+            DL_COUNT=$((DL_COUNT + 1))
+            case "$fname" in
+                luci-i18n-podkop-ru*) touch "$PK_WORK/got_i18n" ;;
+                luci-app-podkop*)     touch "$PK_WORK/got_luci" ;;
+                podkop*)              touch "$PK_WORK/got_base" ;;
+            esac
+        else
+            rm -f "$PK_WORK/$fname"
+        fi
+    done
+
+    # 3. Если в релизе v0.7.24 нет готовых .apk пакетов (только .ipk), конвертируем/распаковываем .ipk для систем с apk
+    if [ "$DL_COUNT" -eq 0 ] && [ "$PKG_EXT" = "apk" ]; then
+        warn "Пакеты .apk в релизе $PODKOP_TAG не найдены. Скачиваю универсальные пакеты .ipk..."
+        BASE_DL="https://github.com/$PODKOP_REPO/releases/download/$PODKOP_TAG"
+        # Устанавливаем зависимости Podkop через apk заранее:
+        say "Устанавливаю системные зависимости через apk..."
+        apk add curl jq kmod-nft-tproxy ip-full conntrack-tools coreutils-base64 sing-box > /dev/null 2>&1 \
+            || apk add curl jq kmod-nft-tproxy ip-full coreutils-base64 > /dev/null 2>&1 || true
+
+        for pkg_prefix in "podkop" "luci-app-podkop" "luci-i18n-podkop-ru"; do
+            for cand in \
+                "${pkg_prefix}_${PODKOP_VER_NUM}-r1_all.ipk" \
+                "${pkg_prefix}_${PODKOP_VER_NUM}_all.ipk" \
+                "${pkg_prefix}_${PODKOP_VER_NUM}-1_all.ipk"; do
+                if wget -qO "$PK_WORK/$cand" "$BASE_DL/$cand" 2> /dev/null && [ -s "$PK_WORK/$cand" ]; then
+                    say "Распаковываю $cand в систему..."
+                    mkdir -p "$PK_WORK/extract"
+                    tar xzf "$PK_WORK/$cand" -C "$PK_WORK/extract"
+                    [ -f "$PK_WORK/extract/data.tar.gz" ] && tar xzf "$PK_WORK/extract/data.tar.gz" -C "${ROOT:-/}"
+                    if [ -f "$PK_WORK/extract/control.tar.gz" ]; then
+                        mkdir -p "$PK_WORK/extract/ctrl"
+                        tar xzf "$PK_WORK/extract/control.tar.gz" -C "$PK_WORK/extract/ctrl"
+                        if [ -f "$PK_WORK/extract/ctrl/postinst" ]; then
+                            sh "$PK_WORK/extract/ctrl/postinst" > /dev/null 2>&1 || true
+                        fi
+                    fi
+                    rm -rf "$PK_WORK/extract"
+                    DL_COUNT=$((DL_COUNT + 1))
+                    break
+                fi
+            done
+        done
+        [ "$DL_COUNT" -gt 0 ] && return 0
+    fi
+
+    [ "$DL_COUNT" -gt 0 ] || die "не удалось скачать пакеты Podkop $PODKOP_TAG с GitHub"
+
+    if [ "$PKG_EXT" = "apk" ]; then
+        apk add --allow-untrusted "$PK_WORK"/*.apk || die "ошибка apk add при установке пакетов Podkop"
+    else
+        opkg install "$PK_WORK"/podkop*.ipk "$PK_WORK"/luci-app-podkop*.ipk "$PK_WORK"/luci-i18n-podkop-ru*.ipk \
+            || die "ошибка opkg install при установке пакетов Podkop"
+    fi
 }
 
 get_payload() {
@@ -119,7 +248,7 @@ get_payload() {
 
 install_addon() {
     if [ ! -f "$LIB/constants.sh" ]; then
-        warn "Podkop не найден на устройстве. Запускаю чистую установку $PODKOP_TARGET_VERSION..."
+        warn "Podkop не найден на устройстве. Запускаю чистую установку $PODKOP_TAG..."
         install_podkop_base
     fi
 
@@ -127,7 +256,7 @@ install_addon() {
     case "$version" in
     v0.7.24* | 0.7.24*) ;;
     *)
-        warn "Обнаружен Podkop '$version', но для патча требуется 0.7.24. Устанавливаю $PODKOP_TARGET_VERSION..."
+        warn "Обнаружен Podkop '$version', но требуется 0.7.24. Устанавливаю $PODKOP_TAG..."
         install_podkop_base
         version="$(sed -n 's/^PODKOP_VERSION="\(.*\)"/\1/p' "$LIB/constants.sh" 2> /dev/null || true)"
         case "$version" in
@@ -177,27 +306,6 @@ EOT
     say "Дополнение подписок установлено"
 }
 
-detect_arch() {
-    arch=""
-    # 1. Приоритет: полное имя суб-архитектуры OpenWrt из /etc/openwrt_release (например, aarch64_cortex-a53)
-    if [ -f "$ROOT/etc/openwrt_release" ]; then
-        arch="$(sed -n "s/^DISTRIB_ARCH=['\"]\?\([^'\"]*\)['\"]\?/\1/p" "$ROOT/etc/openwrt_release" | head -n 1)"
-    fi
-    # 2. Резерв: /etc/os-release (OPENWRT_ARCH)
-    if [ -z "$arch" ] && [ -f "$ROOT/etc/os-release" ]; then
-        arch="$(sed -n 's/^OPENWRT_ARCH=["'\'']\?\([^"'\'']*\)["'\'']\?/\1/p' "$ROOT/etc/os-release" | head -n 1)"
-    fi
-    # 3. Резерв: конфигурация opkg
-    if [ -z "$arch" ] && command -v opkg > /dev/null 2>&1; then
-        arch="$(opkg print-architecture 2> /dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $3, $2}' | sort -n | tail -n 1 | cut -d' ' -f2)"
-    fi
-    # 4. Резерв: конфигурация apk
-    if [ -z "$arch" ] && command -v apk > /dev/null 2>&1; then
-        arch="$(apk --print-arch 2> /dev/null)"
-    fi
-    printf '%s' "$arch"
-}
-
 expected_sha256() {
     key="KNOWN_SHA256_$(printf '%s_%s' "$PE_VERSION" "$ARCH_NAME" | tr 'a-z.-' 'A-Z__')_$(printf '%s' "$EXT" | tr 'a-z' 'A-Z')"
     eval "known=\${$key:-}"
@@ -244,7 +352,6 @@ install_core() {
 
     say "Архитектура: $ARCH_NAME. Скачиваю $file"
     if ! wget -qO "$WORK/$file" "$url"; then
-        # Фоллбэк: если сборка с полной суб-архитектурой не найдена, пробуем короткую архитектуру из apk
         if [ "$EXT" = "apk" ]; then
             SHORT_ARCH="$(apk --print-arch 2> /dev/null || true)"
             if [ -n "$SHORT_ARCH" ] && [ "$SHORT_ARCH" != "$ARCH_NAME" ]; then
@@ -285,8 +392,6 @@ install_core() {
         opkg remove --force-depends sing-box sing-box-tiny > /dev/null 2>&1 || true
         opkg install "$WORK/$file" || die "установка ядра ($file) через opkg не удалась"
     else
-        # Если apk --print-arch возвращает базовую архитектуру (например, aarch64),
-        # а пакет собран под полную (aarch64_cortex-a53), регистрируем её в /etc/apk/arch:
         APK_SYS_ARCH="$(apk --print-arch 2> /dev/null || true)"
         if [ -n "$APK_SYS_ARCH" ] && [ "$APK_SYS_ARCH" != "$ARCH_NAME" ]; then
             mkdir -p "$ROOT/etc/apk"
