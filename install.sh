@@ -1,24 +1,28 @@
 #!/bin/sh
 # rtr-subs: unofficial add-on for Podkop 0.7.24 on OpenWrt
-#   1. subscription support (URL, HWID, update interval) in the Podkop UI;
-#   2. the podkop-engine sing-box core (REALITY compatible with modern Xray servers).
+#   1. auto-installs Podkop v0.7.24 if missing or version mismatches;
+#   2. adds subscription support (URL, HWID, update interval) in the Podkop UI;
+#   3. installs the podkop-engine sing-box core (REALITY compatible with modern Xray servers).
 #
 # Usage:
-#   sh install.sh               install the add-on and the core
+#   sh install.sh               install base Podkop 0.7.24 (if needed), add-on, and core
 #   sh install.sh --no-core     add-on only (keep the current sing-box)
 #   sh install.sh --core-only   core only
 #   sh install.sh --uninstall   restore the files from the latest backup
 #
 # Variables: PE_VERSION (core version), PE_FLAVOR (podkop-engine | podkop-engine-full),
-#            PE_ALLOW_UNVERIFIED=1 (install a core whose checksum is unknown)
+#            PE_ALLOW_UNVERIFIED=1 (default: 1, allow installing core when SHA256 isn't hardcoded)
 
 set -eu
 
-ADDON_VERSION="1.0.1"
+ADDON_VERSION="1.1.0"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
+PODKOP_TARGET_VERSION="v0.7.24"
+PODKOP_INSTALL_URL="https://raw.githubusercontent.com/itdoginfo/podkop/refs/heads/main/install.sh"
 PE_VERSION="${PE_VERSION:-1.13.21-r15}"
 PE_FLAVOR="${PE_FLAVOR:-podkop-engine}"
 PE_REPO="podkop-net/podkop-engine"
+PE_ALLOW_UNVERIFIED="${PE_ALLOW_UNVERIFIED:-1}"
 ROOT="${ROOT:-}"
 
 BIN="$ROOT/usr/bin/podkop"
@@ -46,7 +50,7 @@ for arg in "$@"; do
     --no-core) DO_CORE=0 ;;
     --core-only) DO_ADDON=0 ;;
     --uninstall) DO_UNINSTALL=1 ;;
-    -h | --help) sed -n '2,16p' "$0"; exit 0 ;;
+    -h | --help) sed -n '2,17p' "$0"; exit 0 ;;
     *) die "неизвестный параметр: $arg" ;;
     esac
 done
@@ -88,6 +92,17 @@ if [ "$DO_UNINSTALL" = "1" ]; then
     exit 0
 fi
 
+install_podkop_base() {
+    say "Скачиваю и устанавливаю базовый Podkop ($PODKOP_TARGET_VERSION)..."
+    wget -qO "$WORK/pk_install.sh" "$PODKOP_INSTALL_URL" \
+        || die "не удалось скачать официальный установщик Podkop ($PODKOP_INSTALL_URL)"
+
+    # Фиксируем целевую версию v0.7.24 вместо releases/latest
+    sed -i "s|releases/latest|releases/tags/$PODKOP_TARGET_VERSION|g" "$WORK/pk_install.sh"
+
+    sh "$WORK/pk_install.sh" || die "не удалось установить базовый Podkop $PODKOP_TARGET_VERSION"
+}
+
 get_payload() {
     PAYLOAD="$WORK/payload"
     mkdir -p "$PAYLOAD"
@@ -103,11 +118,23 @@ get_payload() {
 }
 
 install_addon() {
-    [ -f "$LIB/constants.sh" ] || die "Podkop не установлен ($LIB/constants.sh не найден)"
-    version="$(sed -n 's/^PODKOP_VERSION="\(.*\)"/\1/p' "$LIB/constants.sh")"
+    if [ ! -f "$LIB/constants.sh" ]; then
+        warn "Podkop не найден на устройстве. Запускаю чистую установку $PODKOP_TARGET_VERSION..."
+        install_podkop_base
+    fi
+
+    version="$(sed -n 's/^PODKOP_VERSION="\(.*\)"/\1/p' "$LIB/constants.sh" 2> /dev/null || true)"
     case "$version" in
     v0.7.24* | 0.7.24*) ;;
-    *) die "установлен Podkop '$version', дополнение сделано для 0.7.24" ;;
+    *)
+        warn "Обнаружен Podkop '$version', но для патча требуется 0.7.24. Устанавливаю $PODKOP_TARGET_VERSION..."
+        install_podkop_base
+        version="$(sed -n 's/^PODKOP_VERSION="\(.*\)"/\1/p' "$LIB/constants.sh" 2> /dev/null || true)"
+        case "$version" in
+        v0.7.24* | 0.7.24*) ;;
+        *) die "после установки версия Podkop '$version' всё ещё не совпадает с 0.7.24" ;;
+        esac
+        ;;
     esac
 
     get_payload
@@ -135,12 +162,13 @@ SUBSCRIPTION_FETCH_TIMEOUT=20
 EOT
     fi
 
-    luci_version="$(sed -n 's/^var PODKOP_LUCI_APP_VERSION = "\(.*\)";/\1/p' "$VIEW/main.js")"
+    luci_version="$(sed -n 's/^var PODKOP_LUCI_APP_VERSION = "\(.*\)";/\1/p' "$VIEW/main.js" 2> /dev/null || true)"
     cp "$PAYLOAD/main.js" "$VIEW/main.js" && chmod 644 "$VIEW/main.js"
     cp "$PAYLOAD/section.js" "$VIEW/section.js" && chmod 644 "$VIEW/section.js"
     sed -i "s/__COMPILED_VERSION_VARIABLE__/${luci_version:-$version}/g" "$VIEW/main.js"
 
-    if [ -f "$I18N/podkop.ru.lmo" ]; then
+    if [ -f "$I18N/podkop.ru.lmo" ] || [ -d "$I18N" ]; then
+        mkdir -p "$I18N"
         cp "$PAYLOAD/podkop.ru.lmo" "$I18N/podkop.ru.lmo"
     fi
 
@@ -151,7 +179,7 @@ EOT
 
 detect_arch() {
     arch=""
-    # 1. Приоритет: полное имя архитектуры OpenWrt из /etc/openwrt_release (например, aarch64_cortex-a53)
+    # 1. Приоритет: полное имя суб-архитектуры OpenWrt из /etc/openwrt_release (например, aarch64_cortex-a53)
     if [ -f "$ROOT/etc/openwrt_release" ]; then
         arch="$(sed -n "s/^DISTRIB_ARCH=['\"]\?\([^'\"]*\)['\"]\?/\1/p" "$ROOT/etc/openwrt_release" | head -n 1)"
     fi
@@ -210,13 +238,13 @@ install_core() {
     fi
 
     ARCH_NAME="$(detect_arch)"
-    [ -n "$ARCH_NAME" ] || die "не удалось определить архитектуру"
+    [ -n "$ARCH_NAME" ] || die "не удалось определить архитектуру устройства"
     file="${PE_FLAVOR}_${PE_VERSION}_openwrt_${ARCH_NAME}.${EXT}"
     url="https://github.com/$PE_REPO/releases/download/v$PE_VERSION/$file"
 
     say "Архитектура: $ARCH_NAME. Скачиваю $file"
     if ! wget -qO "$WORK/$file" "$url"; then
-        # Если сборка с полной суб-архитектурой не найдена, пробуем короткую архитектуру apk
+        # Фоллбэк: если сборка с полной суб-архитектурой не найдена, пробуем короткую архитектуру из apk
         if [ "$EXT" = "apk" ]; then
             SHORT_ARCH="$(apk --print-arch 2> /dev/null || true)"
             if [ -n "$SHORT_ARCH" ] && [ "$SHORT_ARCH" != "$ARCH_NAME" ]; then
@@ -238,8 +266,8 @@ install_core() {
     if [ -n "$want" ]; then
         [ "$want" = "$have" ] || die "контрольная сумма не совпала: ожидалась $want, получена $have"
         say "Контрольная сумма совпала: $have"
-    elif [ "${PE_ALLOW_UNVERIFIED:-0}" = "1" ]; then
-        warn "контрольная сумма неизвестна ($have), продолжаю по PE_ALLOW_UNVERIFIED=1"
+    elif [ "$PE_ALLOW_UNVERIFIED" = "1" ]; then
+        warn "контрольная сумма в базе не найдена ($have), продолжаю установку"
     else
         die "контрольная сумма $file неизвестна ($have). Запустите с PE_ALLOW_UNVERIFIED=1"
     fi
@@ -255,10 +283,10 @@ install_core() {
 
     if [ "$EXT" = "ipk" ]; then
         opkg remove --force-depends sing-box sing-box-tiny > /dev/null 2>&1 || true
-        opkg install "$WORK/$file" || die "установка ядра не удалась"
+        opkg install "$WORK/$file" || die "установка ядра ($file) через opkg не удалась"
     else
-        # В некоторых сборках OpenWrt с apk --print-arch возвращает базовую архитектуру (например, aarch64),
-        # тогда как пакет собран под полную (aarch64_cortex-a53). Разрешаем обе архитектуры:
+        # Если apk --print-arch возвращает базовую архитектуру (например, aarch64),
+        # а пакет собран под полную (aarch64_cortex-a53), регистрируем её в /etc/apk/arch:
         APK_SYS_ARCH="$(apk --print-arch 2> /dev/null || true)"
         if [ -n "$APK_SYS_ARCH" ] && [ "$APK_SYS_ARCH" != "$ARCH_NAME" ]; then
             mkdir -p "$ROOT/etc/apk"
@@ -274,7 +302,7 @@ install_core() {
         apk add --allow-untrusted --overwrite "$WORK/$file" 2> /dev/null \
             || apk add --allow-untrusted --arch "$ARCH_NAME" "$WORK/$file" 2> /dev/null \
             || apk add --allow-untrusted "$WORK/$file" \
-            || die "установка ядра не удалась"
+            || die "установка ядра ($file) через apk не удалась"
     fi
 
     say "Ядро установлено: $(sing-box version 2> /dev/null | head -n 1)"
