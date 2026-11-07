@@ -14,7 +14,7 @@
 
 set -eu
 
-ADDON_VERSION="1.0.0"
+ADDON_VERSION="1.0.1"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PE_VERSION="${PE_VERSION:-1.13.21-r15}"
 PE_FLAVOR="${PE_FLAVOR:-podkop-engine}"
@@ -34,7 +34,7 @@ KNOWN_SHA256_1_13_21_R15_AARCH64_CORTEX_A53_APK="03af1f6e0a661b7b09e2df087d655ae
 
 say() { printf '%s\n' "$*"; }
 warn() { printf '! %s\n' "$*" >&2; }
-die() { printf 'шибка: %s\n' "$*" >&2; exit 1; }
+die() { printf 'Ошибка: %s\n' "$*" >&2; exit 1; }
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
 
@@ -65,7 +65,7 @@ if [ "$DO_UNINSTALL" = "1" ]; then
         fi
     done
     [ -n "$last" ] || die "резервная копия не найдена в /root"
-    say "осстанавливаю файлы из $last"
+    say "Восстанавливаю файлы из $last"
     [ -f "$last/podkop" ] && cp "$last/podkop" "$BIN" && chmod 755 "$BIN"
     [ -f "$last/constants.sh" ] && cp "$last/constants.sh" "$LIB/constants.sh"
     [ -f "$last/main.js" ] && cp "$last/main.js" "$VIEW/main.js"
@@ -84,7 +84,7 @@ if [ "$DO_UNINSTALL" = "1" ]; then
     rm -f "$ROOT"/tmp/luci-indexcache* 2> /dev/null || true
     rm -rf "$ROOT"/tmp/luci-modulecache 2> /dev/null || true
     [ -x "$ROOT/etc/init.d/podkop" ] && "$ROOT/etc/init.d/podkop" restart || true
-    say "отово."
+    say "Готово."
     exit 0
 fi
 
@@ -113,13 +113,13 @@ install_addon() {
     get_payload
 
     if grep -q 'subscription.sh' "$BIN" 2> /dev/null; then
-        say "ополнение уже установлено, обновляю файлы"
+        say "Дополнение уже установлено, обновляю файлы"
     else
         mkdir -p "$BACKUP"
         for f in "$BIN" "$LIB/constants.sh" "$VIEW/main.js" "$VIEW/section.js" "$I18N/podkop.ru.lmo"; do
             [ -f "$f" ] && cp "$f" "$BACKUP/"
         done
-        say "езервная копия: $BACKUP"
+        say "Резервная копия: $BACKUP"
     fi
 
     cp "$PAYLOAD/podkop" "$BIN" && chmod 755 "$BIN"
@@ -146,15 +146,28 @@ EOT
 
     rm -f "$ROOT"/tmp/luci-indexcache* 2> /dev/null || true
     rm -rf "$ROOT"/tmp/luci-modulecache 2> /dev/null || true
-    say "ополнение подписок установлено"
+    say "Дополнение подписок установлено"
 }
 
 detect_arch() {
-    if command -v apk > /dev/null 2>&1; then
-        apk --print-arch
-    else
-        opkg print-architecture | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $3, $2}' | sort -n | tail -n 1 | cut -d' ' -f2
+    arch=""
+    # 1. Приоритет: полное имя архитектуры OpenWrt из /etc/openwrt_release (например, aarch64_cortex-a53)
+    if [ -f "$ROOT/etc/openwrt_release" ]; then
+        arch="$(sed -n "s/^DISTRIB_ARCH=['\"]\?\([^'\"]*\)['\"]\?/\1/p" "$ROOT/etc/openwrt_release" | head -n 1)"
     fi
+    # 2. Резерв: /etc/os-release (OPENWRT_ARCH)
+    if [ -z "$arch" ] && [ -f "$ROOT/etc/os-release" ]; then
+        arch="$(sed -n 's/^OPENWRT_ARCH=["'\'']\?\([^"'\'']*\)["'\'']\?/\1/p' "$ROOT/etc/os-release" | head -n 1)"
+    fi
+    # 3. Резерв: конфигурация opkg
+    if [ -z "$arch" ] && command -v opkg > /dev/null 2>&1; then
+        arch="$(opkg print-architecture 2> /dev/null | awk '$1=="arch" && $2!="all" && $2!="noarch" {print $3, $2}' | sort -n | tail -n 1 | cut -d' ' -f2)"
+    fi
+    # 4. Резерв: конфигурация apk
+    if [ -z "$arch" ] && command -v apk > /dev/null 2>&1; then
+        arch="$(apk --print-arch 2> /dev/null)"
+    fi
+    printf '%s' "$arch"
 }
 
 expected_sha256() {
@@ -201,18 +214,34 @@ install_core() {
     file="${PE_FLAVOR}_${PE_VERSION}_openwrt_${ARCH_NAME}.${EXT}"
     url="https://github.com/$PE_REPO/releases/download/v$PE_VERSION/$file"
 
-    say "рхитектура: $ARCH_NAME. Скачиваю $file"
-    wget -qO "$WORK/$file" "$url" || die "не удалось скачать $url"
+    say "Архитектура: $ARCH_NAME. Скачиваю $file"
+    if ! wget -qO "$WORK/$file" "$url"; then
+        # Если сборка с полной суб-архитектурой не найдена, пробуем короткую архитектуру apk
+        if [ "$EXT" = "apk" ]; then
+            SHORT_ARCH="$(apk --print-arch 2> /dev/null || true)"
+            if [ -n "$SHORT_ARCH" ] && [ "$SHORT_ARCH" != "$ARCH_NAME" ]; then
+                warn "пакет для $ARCH_NAME не найден, пробую $SHORT_ARCH"
+                ARCH_NAME="$SHORT_ARCH"
+                file="${PE_FLAVOR}_${PE_VERSION}_openwrt_${ARCH_NAME}.${EXT}"
+                url="https://github.com/$PE_REPO/releases/download/v$PE_VERSION/$file"
+                wget -qO "$WORK/$file" "$url" || die "не удалось скачать $url"
+            else
+                die "не удалось скачать $url"
+            fi
+        else
+            die "не удалось скачать $url"
+        fi
+    fi
 
     want="$(expected_sha256 "$file")"
     have="$(sha256sum "$WORK/$file" | cut -d' ' -f1)"
     if [ -n "$want" ]; then
         [ "$want" = "$have" ] || die "контрольная сумма не совпала: ожидалась $want, получена $have"
-        say "онтрольная сумма совпала: $have"
+        say "Контрольная сумма совпала: $have"
     elif [ "${PE_ALLOW_UNVERIFIED:-0}" = "1" ]; then
         warn "контрольная сумма неизвестна ($have), продолжаю по PE_ALLOW_UNVERIFIED=1"
     else
-        die "контрольная сумма $file неизвестна ($have). апустите с PE_ALLOW_UNVERIFIED=1"
+        die "контрольная сумма $file неизвестна ($have). Запустите с PE_ALLOW_UNVERIFIED=1"
     fi
 
     mkdir -p "$BACKUP"
@@ -228,7 +257,24 @@ install_core() {
         opkg remove --force-depends sing-box sing-box-tiny > /dev/null 2>&1 || true
         opkg install "$WORK/$file" || die "установка ядра не удалась"
     else
-        apk add --allow-untrusted --overwrite "$WORK/$file" 2> /dev/null || apk add --allow-untrusted "$WORK/$file" || die "установка ядра не удалась"
+        # В некоторых сборках OpenWrt с apk --print-arch возвращает базовую архитектуру (например, aarch64),
+        # тогда как пакет собран под полную (aarch64_cortex-a53). Разрешаем обе архитектуры:
+        APK_SYS_ARCH="$(apk --print-arch 2> /dev/null || true)"
+        if [ -n "$APK_SYS_ARCH" ] && [ "$APK_SYS_ARCH" != "$ARCH_NAME" ]; then
+            mkdir -p "$ROOT/etc/apk"
+            if [ ! -f "$ROOT/etc/apk/arch" ]; then
+                printf '%s\n' "$APK_SYS_ARCH" > "$ROOT/etc/apk/arch"
+            fi
+            if ! grep -qx "$ARCH_NAME" "$ROOT/etc/apk/arch" 2> /dev/null; then
+                printf '%s\n' "$ARCH_NAME" >> "$ROOT/etc/apk/arch"
+            fi
+        fi
+
+        apk del --no-depend sing-box sing-box-tiny > /dev/null 2>&1 || true
+        apk add --allow-untrusted --overwrite "$WORK/$file" 2> /dev/null \
+            || apk add --allow-untrusted --arch "$ARCH_NAME" "$WORK/$file" 2> /dev/null \
+            || apk add --allow-untrusted "$WORK/$file" \
+            || die "установка ядра не удалась"
     fi
 
     say "Ядро установлено: $(sing-box version 2> /dev/null | head -n 1)"
@@ -238,10 +284,10 @@ install_core() {
 [ "$DO_CORE" = "1" ] && install_core
 
 if [ -x "$ROOT/etc/init.d/podkop" ]; then
-    say "ерезапускаю Podkop"
+    say "Перезапускаю Podkop"
     "$ROOT/etc/init.d/podkop" restart || warn "не удалось перезапустить Podkop"
 fi
 
 say ""
-say "отово (rtr-subs $ADDON_VERSION)."
+say "Готово (rtr-subs $ADDON_VERSION)."
 exit 0
