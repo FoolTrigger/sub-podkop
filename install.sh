@@ -19,10 +19,12 @@
 # Optional: --no-safe-defaults skips resolve/uTLS UCI defaults.
 # Core packages are resolved through the GitHub API to avoid OpenWrt uclient-fetch
 # redirect-header limitations; SHA256 is required unless PE_ALLOW_UNVERIFIED=1 is set.
+# On OpenWrt 25.12/APK, podkop-engine is installed before Podkop to satisfy its
+# sing-box dependency and avoid an unnecessary download of the stock sing-box APK.
 
 set -eu
 
-ADDON_VERSION="1.4.1"
+ADDON_VERSION="1.4.2"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PODKOP_REPO="itdoginfo/podkop"
 PODKOP_TAG="${PODKOP_TAG:-0.7.24}"
@@ -267,6 +269,31 @@ backup_size_kb() {
     printf '%s' "$backup_total_kb"
 }
 
+backup_list_path() {
+    src="$1"
+    if [ -e "$src" ] || [ -L "$src" ]; then
+        kb="$(du -sk "$src" 2>/dev/null | awk '{print $1}')"
+        case "$kb" in ''|*[!0-9]*) kb=0 ;; esac
+        say "  - $src ($(format_kilobytes "$kb"))"
+    fi
+}
+
+show_backup_paths() {
+    backup_list_path "$ROOT/etc/config/podkop"
+    if [ "$DO_ADDON" = "1" ]; then
+        for src in "$BIN" "$LIB/constants.sh" "$LIB/subscription.sh" \
+            "$VIEW/main.js" "$VIEW/section.js" "$I18N/podkop.ru.lmo" \
+            "$ROOT/etc/init.d/podkop" "$ROOT/etc/crontabs/root" \
+            "$ROOT/etc/podkop/subscriptions"
+        do
+            backup_list_path "$src"
+        done
+    fi
+    if [ "$DO_CORE" = "1" ]; then
+        backup_list_path "$ROOT/usr/bin/sing-box"
+    fi
+}
+
 format_kilobytes() {
     awk -v kb="$1" 'BEGIN {
         if (kb >= 1048576) printf "%.2f GiB", kb / 1048576
@@ -324,12 +351,12 @@ choose_backup_policy() {
     estimated_size="$(format_kilobytes "$estimated_kb")"
     say ""
     say "Расчётный размер резервной копии: $estimated_size"
-    say "В копию войдут только существующие файлы, относящиеся к выбранной операции: UCI-конфигурация."
-    if [ "$DO_ADDON" = "1" ]; then
-        say "Также: файлы Podkop/rtr-subs, кэш подписок и crontab."
-    fi
-    if [ "$DO_CORE" = "1" ]; then
-        say "Также: текущий бинарный файл sing-box."
+    if [ "$estimated_kb" -eq 0 ]; then
+        say "Существующих файлов для резервирования не обнаружено."
+        say "При подтверждении будет создана только служебная запись о резервной копии."
+    else
+        say "Будут сохранены следующие существующие файлы и каталоги:"
+        show_backup_paths
     fi
     say "Это не полный бэкап OpenWrt."
 
@@ -436,11 +463,26 @@ luci-i18n-podkop-ru-${TAG_CLEAN}.ipk
 
     say "Устанавливаю пакеты Podkop $TAG_CLEAN..."
     if [ "$PKG_EXT" = "apk" ]; then
-        apk add --allow-untrusted \
-            "$PK_WORK/podkop-${TAG_CLEAN}-r1.apk" \
-            "$PK_WORK/luci-app-podkop-${TAG_CLEAN}-r1.apk" \
-            "$PK_WORK/luci-i18n-podkop-ru-${TAG_CLEAN}.apk" \
-            || die "ошибка установки пакетов Podkop через apk"
+        apk_attempt=1
+        apk_installed=0
+        while [ "$apk_attempt" -le 3 ]; do
+            say "Установка APK-пакетов Podkop (попытка $apk_attempt/3)..."
+            if apk add --allow-untrusted \
+                "$PK_WORK/podkop-${TAG_CLEAN}-r1.apk" \
+                "$PK_WORK/luci-app-podkop-${TAG_CLEAN}-r1.apk" \
+                "$PK_WORK/luci-i18n-podkop-ru-${TAG_CLEAN}.apk"; then
+                apk_installed=1
+                break
+            fi
+            warn "APK не смог завершить транзакцию установки (попытка $apk_attempt/3)"
+            apk_attempt=$((apk_attempt + 1))
+            if [ "$apk_attempt" -le 3 ]; then
+                say "Обновляю индексы APK и повторяю попытку..."
+                apk update || true
+                sleep 2
+            fi
+        done
+        [ "$apk_installed" = "1" ] || die "ошибка установки пакетов Podkop через apk после 3 попыток. Проверьте сеть и свободное место в /overlay; уже установленные APK-пакеты могут остаться на устройстве."
     else
         # В OpenWrt 23.05/24.10 с opkg пакет dnsmasq нужно заменить на dnsmasq-full, если этого требует podkop
         if opkg list-installed | grep -q '^dnsmasq '; then
@@ -690,23 +732,26 @@ release_asset_field() {
 # from github.com/releases/download. Resolve the asset through the GitHub API
 # and request application/octet-stream from the API asset URL instead.
 download_core_asset() {
-    local asset_name="$1" output="$2" asset_url
+    local asset_name="$1" output="$2" asset_url attempt
     asset_url="$(release_asset_field "$asset_name" url)"
     [ -n "$asset_url" ] || {
         warn "GitHub API не вернул URL файла $asset_name"
         return 1
     }
-    wget -q --header='Accept: application/octet-stream' \
-        -O "$output" "$asset_url" || {
-        warn "Не удалось скачать asset через GitHub API: $asset_name"
+
+    attempt=1
+    while [ "$attempt" -le 3 ]; do
         rm -f "$output"
-        return 1
-    }
-    [ -s "$output" ] || {
-        warn "GitHub вернул пустой файл: $asset_name"
+        if wget -q --header='Accept: application/octet-stream' \
+            -O "$output" "$asset_url" && [ -s "$output" ]; then
+            return 0
+        fi
+        warn "Не удалось полностью скачать $asset_name (попытка $attempt/3)"
         rm -f "$output"
-        return 1
-    }
+        attempt=$((attempt + 1))
+        [ "$attempt" -le 3 ] && sleep 2
+    done
+    return 1
 }
 
 expected_sha256() {
@@ -838,11 +883,13 @@ install_core() {
             fi
         fi
 
-        apk del --no-depend sing-box sing-box-tiny > /dev/null 2>&1 || true
-        apk add --allow-untrusted --overwrite "$WORK/$file" 2> /dev/null \
-            || apk add --allow-untrusted --arch "$ARCH_NAME" "$WORK/$file" 2> /dev/null \
-            || apk add --allow-untrusted "$WORK/$file" \
-            || die "установка ядра ($file) через apk не удалась"
+        # OpenWrt 25.12+ uses apk. Do NOT remove the feed sing-box first:
+        # podkop-engine provides/replaces sing-box and apk performs the replacement
+        # in one transaction. Removing it beforehand can break Podkop dependencies
+        # and DNS; see podkop-engine/docs/INSTALL.md.
+        apk add --allow-untrusted "$WORK/$file" \
+            || apk add --allow-untrusted --arch "$ARCH_NAME" "$WORK/$file" \
+            || die "установка ядра ($file) через apk не удалась. Штатный sing-box не удалялся вручную; проверьте архитектуру, свободное место и доступность GitHub/репозиториев."
     fi
 
     say "Ядро установлено: $(sing-box version 2> /dev/null | head -n 1)"
@@ -906,8 +953,17 @@ choose_xhttp_policy
 choose_backup_policy
 create_backup
 
-[ "$DO_ADDON" = "1" ] && install_addon
-[ "$DO_CORE" = "1" ] && install_core
+if command -v apk >/dev/null 2>&1; then
+    # OpenWrt 25.12+: podkop-engine replaces/provides the sing-box dependency.
+    # Install it BEFORE Podkop so apk does not download the stock sing-box package
+    # from the OpenWrt feed (which failed during extraction on some connections).
+    [ "$DO_CORE" = "1" ] && install_core
+    [ "$DO_ADDON" = "1" ] && install_addon
+else
+    # OpenWrt 24.10 and older: install Podkop first, then replace sing-box via opkg.
+    [ "$DO_ADDON" = "1" ] && install_addon
+    [ "$DO_CORE" = "1" ] && install_core
+fi
 apply_xhttp_filter_choice
 apply_safe_defaults
 
