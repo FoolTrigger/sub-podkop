@@ -24,7 +24,7 @@
 
 set -eu
 
-ADDON_VERSION="1.4.2"
+ADDON_VERSION="1.4.3"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PODKOP_REPO="itdoginfo/podkop"
 PODKOP_TAG="${PODKOP_TAG:-0.7.24}"
@@ -57,6 +57,7 @@ DO_UNINSTALL=0
 DO_SAFE_DEFAULTS=1
 XHTTP_FILTER_CHOICE=""   # 1 = filter XHTTP (default/safe); 0 = allow XHTTP
 BACKUP_CHOICE=""        # 1 = create backup; 0 = skip backup
+PODKOP_UCI_CHANGED=0       # commit Podkop settings once after all changes
 for arg in "$@"; do
     case "$arg" in
     --no-core) DO_CORE=0 ;;
@@ -394,15 +395,20 @@ apply_xhttp_filter_choice() {
     # The parser reads this option from the named Podkop 'settings' section.
     if ! uci -q get podkop.settings >/dev/null 2>&1; then
         uci -q set podkop.settings='settings' || die "не удалось создать секцию podkop.settings"
+        PODKOP_UCI_CHANGED=1
     fi
-    uci -q set "podkop.settings.rtr_subs_allow_xhttp=$allow_xhttp" \
-        || die "не удалось сохранить выбор фильтра XHTTP"
-    uci commit podkop || die "не удалось сохранить настройки фильтра XHTTP"
+
+    current_allow="$(uci -q get podkop.settings.rtr_subs_allow_xhttp 2>/dev/null || true)"
+    if [ "$current_allow" != "$allow_xhttp" ]; then
+        uci -q set "podkop.settings.rtr_subs_allow_xhttp=$allow_xhttp" \
+            || die "не удалось сохранить выбор фильтра XHTTP"
+        PODKOP_UCI_CHANGED=1
+    fi
 
     if [ "$XHTTP_FILTER_CHOICE" = "1" ]; then
-        say "Сохранено: podkop.settings.rtr_subs_allow_xhttp=0 (фильтр включён)"
+        say "Выбрано: фильтр XHTTP включён (podkop.settings.rtr_subs_allow_xhttp=0)"
     else
-        say "Сохранено: podkop.settings.rtr_subs_allow_xhttp=1 (фильтр выключен)"
+        say "Выбрано: фильтр XHTTP выключен (podkop.settings.rtr_subs_allow_xhttp=1)"
     fi
 }
 
@@ -421,6 +427,51 @@ detect_arch() {
         arch="$(apk --print-arch 2> /dev/null)"
     fi
     printf '%s' "$arch"
+}
+
+
+# Do not replace /usr/bin/podkop while a procd-launched start/reload/stop
+# from the old runtime is still executing. Such a process has already loaded
+# the unpatched shell code and cannot be protected by the new lock functions.
+wait_for_podkop_cli_idle() {
+    [ -n "$ROOT" ] && return 0
+    [ -d /proc ] || return 0
+
+    local waited max_wait proc pid cmdline found
+    max_wait="${PODKOP_START_WAIT_SECONDS:-300}"
+    case "$max_wait" in ''|*[!0-9]*) max_wait=300 ;; esac
+    [ "$max_wait" -ge 1 ] || max_wait=300
+    waited=0
+    found=0
+
+    while :; do
+        found=0
+        for proc in /proc/[0-9]*; do
+            [ -r "$proc/cmdline" ] || continue
+            pid="${proc#/proc/}"
+            [ "$pid" != "$$" ] || continue
+            cmdline="$(tr '\000' ' ' < "$proc/cmdline" 2>/dev/null || true)"
+            case "$cmdline" in
+                *"/usr/bin/podkop start"*|*"/usr/bin/podkop stop"*|*"/usr/bin/podkop reload"*|*"/usr/bin/podkop restart"*)
+                    found=1
+                    break
+                    ;;
+            esac
+        done
+
+        [ "$found" = "1" ] || break
+        if [ "$waited" -eq 0 ]; then
+            say "Обнаружен незавершённый процесс Podkop; ожидаю его завершения перед заменой runtime-файла..."
+        fi
+        [ "$waited" -lt "$max_wait" ] || die "процесс Podkop не завершился за $max_wait секунд. Файлы не заменены; проверьте: ps w | grep podkop"
+        sleep 2
+        waited=$((waited + 2))
+        if [ $((waited % 10)) -eq 0 ]; then
+            say "Ожидание Podkop: $waited/$max_wait секунд"
+        fi
+    done
+
+    [ "$waited" -eq 0 ] || say "Предыдущий процесс Podkop завершился; можно безопасно обновлять runtime"
 }
 
 install_podkop_base() {
@@ -537,7 +588,7 @@ patch_subscription_payload() {
     cat >> "$tmp" << 'RTR_SUBS_HARDENED_FILTER_V1'
 
 # RTR_SUBS_HARDENED_FILTER_V1
-# rtr-subs 1.4.0: validate server/port and the complete URI before caching it.
+# rtr-subs 1.4.3: validate server/port and the complete URI before caching it.
 _rtr_subs_valid_ipv4() {
     [ "$1" != "0.0.0.0" ] || return 1
     printf '%s\n' "$1" | awk -F. '
@@ -656,11 +707,232 @@ RTR_SUBS_HARDENED_FILTER_V1
     say "Добавлены проверки адресов, портов, decode-link и XHTTP"
 }
 
+# Backport Podkop upstream fix 4993328 (issues #360/#399): serialize
+# start/stop/reload, keep shutdown state out of UCI commits, and always register
+# existing local source rulesets in the generated sing-box configuration.
+patch_podkop_runtime_payload() {
+    local file="$PAYLOAD/podkop"
+    local tmp="$PAYLOAD/podkop.rtr-tmp"
+
+    [ -s "$file" ] || die "podkop payload отсутствует"
+    if grep -q 'RTR_SUBS_PODKOP_LIFECYCLE_FIX_V1' "$file"; then
+        say "Исправление жизненного цикла Podkop уже присутствует"
+        return 0
+    fi
+
+    # Fail safely if the upstream/fork structure changed. Never install a
+    # partially patched Podkop runtime.
+    for signature in \
+        '^start_main() {' \
+        '^start() {' \
+        '^stop() {' \
+        '^reload() {' \
+        '^restart() {' \
+        '^prepare_source_ruleset() {'; do
+        grep -q "$signature" "$file" || die "не найден ожидаемый блок '$signature' в payload/podkop; патч остановлен"
+    done
+
+    count="$(grep -c 'config_get shutdown_correctly "settings" "shutdown_correctly"' "$file" || true)"
+    [ "$count" = "2" ] || die "ожидались 2 проверки shutdown_correctly в payload/podkop, найдено: $count"
+
+    awk '
+        function emit_helpers() {
+            print "# RTR_SUBS_PODKOP_LIFECYCLE_FIX_V1"
+            print "# Serialize start/stop/reload so interface and config triggers cannot race."
+            print "podkop_lock() {"
+            print "    mkdir -p \"$(dirname \"$PODKOP_LOCK_FILE\")\""
+            print "    lock \"$PODKOP_LOCK_FILE\""
+            print "}"
+            print "podkop_unlock() {"
+            print "    lock -u \"$PODKOP_LOCK_FILE\" 2> /dev/null"
+            print "}"
+            print "# Do not uci-commit shutdown_correctly from start/stop: that can retrigger procd."
+            print "get_shutdown_correctly() {"
+            print "    if [ -f \"$PODKOP_SHUTDOWN_STATE_FILE\" ]; then"
+            print "        cat \"$PODKOP_SHUTDOWN_STATE_FILE\""
+            print "        return 0"
+            print "    fi"
+            print "    local value"
+            print "    config_get value \"settings\" \"shutdown_correctly\" \"0\""
+            print "    echo \"$value\""
+            print "}"
+            print "set_shutdown_correctly() {"
+            print "    local value=\"$1\""
+            print "    echo \"$value\" > \"$PODKOP_SHUTDOWN_STATE_FILE\""
+            print "}"
+            print ""
+        }
+        function emit_start() {
+            print "start() {"
+            print "    podkop_lock"
+            print "    trap \"podkop_unlock\" EXIT"
+            print ""
+            print "    start_main"
+            print ""
+            print "    config_get_bool dont_touch_dhcp \"settings\" \"dont_touch_dhcp\" 0"
+            print "    if [ \"$dont_touch_dhcp\" -eq 0 ]; then"
+            print "        dnsmasq_configure"
+            print "    fi"
+            print ""
+            print "    set_shutdown_correctly 0"
+            print "    trap - EXIT"
+            print "    podkop_unlock"
+            print "}"
+            print ""
+        }
+        function emit_stop() {
+            print "stop() {"
+            print "    podkop_lock"
+            print "    trap \"podkop_unlock\" EXIT"
+            print ""
+            print "    local dont_touch_dhcp"
+            print "    config_get_bool dont_touch_dhcp \"settings\" \"dont_touch_dhcp\" 0"
+            print "    if [ \"$dont_touch_dhcp\" -eq 0 ]; then"
+            print "        dnsmasq_restore"
+            print "    fi"
+            print ""
+            print "    stop_main"
+            print "    set_shutdown_correctly 1"
+            print "    trap - EXIT"
+            print "    podkop_unlock"
+            print "}"
+            print ""
+        }
+        function emit_reload() {
+            print "reload() {"
+            print "    log \"Podkop reload\""
+            print "    podkop_lock"
+            print "    trap \"podkop_unlock\" EXIT"
+            print "    stop_main"
+            print "    start_main"
+            print "    trap - EXIT"
+            print "    podkop_unlock"
+            print "}"
+            print ""
+        }
+        function emit_prepare_source() {
+            print "prepare_source_ruleset() {"
+            print "    local section=\"$1\""
+            print "    local name=\"$2\""
+            print "    local type=\"$3\""
+            print "    local route_rule_tag=\"$4\""
+            print "    local create_rc"
+            print "    log \"Preparing a $name $type rule set for $section section\" \"debug\""
+            print "    ruleset_tag=$(get_ruleset_tag \"$section\" \"$name\" \"$type\")"
+            print "    ruleset_filepath=\"$TMP_RULESET_FOLDER/$ruleset_tag.json\""
+            print "    create_source_rule_set \"$ruleset_filepath\""
+            print "    create_rc=$?"
+            print ""
+            print "    # If the source JSON already exists after a reload/race, it must still"
+            print "    # be attached to route and FakeIP DNS rules."
+            print "    case \"$create_rc\" in"
+            print "        0 | 3)"
+            print "            [ \"$create_rc\" -eq 3 ] && log \"Source rule set $ruleset_filepath already exists, reusing and registering in config\" \"debug\""
+            print "            config=$(sing_box_cm_add_local_ruleset \"$config\" \"$ruleset_tag\" \"source\" \"$ruleset_filepath\")"
+            print "            config=$(sing_box_cm_patch_route_rule \"$config\" \"$route_rule_tag\" \"rule_set\" \"$ruleset_tag\")"
+            print "            case \"$type\" in"
+            print "                domains)"
+            print "                    config=$(sing_box_cm_patch_dns_route_rule \"$config\" \"$SB_FAKEIP_DNS_RULE_TAG\" \"rule_set\" \"$ruleset_tag\")"
+            print "                    ;;"
+            print "                subnets) ;;"
+            print "                *)"
+            print "                    log \"Unsupported source rule set type: $type\" \"error\""
+            print "                    return 1"
+            print "                    ;;"
+            print "            esac"
+            print "            ;;"
+            print "        *)"
+            print "            log \"Failed to prepare source rule set $ruleset_filepath (rc=$create_rc)\" \"error\""
+            print "            return 1"
+            print "            ;;"
+            print "    esac"
+            print "}"
+            print ""
+        }
+
+        /^start_main\(\) \{$/ {
+            if (!helpers_done) {
+                emit_helpers()
+                helpers_done = 1
+            }
+            print
+            next
+        }
+        /^start\(\) \{$/ && mode == 0 {
+            emit_start(); mode = 1; starts++; next
+        }
+        /^stop\(\) \{$/ && mode == 1 {
+            emit_stop(); mode = 2; stops++; next
+        }
+        /^reload\(\) \{$/ && mode == 2 {
+            emit_reload(); mode = 3; reloads++; next
+        }
+        /^restart\(\) \{$/ && mode == 3 {
+            mode = 0
+            print
+            next
+        }
+        /^prepare_source_ruleset\(\) \{$/ && mode == 0 {
+            emit_prepare_source(); mode = 4; prepare++; next
+        }
+        /^configure_user_domain_list\(\) \{$/ && mode == 4 {
+            mode = 0
+            print
+            next
+        }
+        mode == 1 || mode == 2 || mode == 3 || mode == 4 { next }
+        { print }
+        END {
+            if (!helpers_done || starts != 1 || stops != 1 || reloads != 1 || prepare != 1)
+                exit 44
+        }
+    ' "$file" > "$tmp" || die "не удалось применить upstream lifecycle fix к Podkop; исходный файл не изменён"
+
+    # Replace both persistent shutdown_correctly reads with the runtime state file.
+    awk '
+        {
+            if (index($0, "config_get shutdown_correctly \"settings\" \"shutdown_correctly\"") > 0) {
+                sub(/config_get shutdown_correctly "settings" "shutdown_correctly"/, "shutdown_correctly=\"$(get_shutdown_correctly)\"")
+                replaced++
+            }
+            print
+        }
+        END { if (replaced != 2) exit 45 }
+    ' "$tmp" > "$file.new" || {
+        rm -f "$tmp" "$file.new"
+        die "не удалось перенести чтение shutdown_correctly на временный state-файл"
+    }
+
+    mv "$file.new" "$tmp"
+    chmod 755 "$tmp"
+    if ! sh -n "$tmp"; then
+        rm -f "$tmp"
+        die "после backport исправления Podkop скрипт не прошёл sh -n; исходный payload не изменён"
+    fi
+    for required in \
+        'RTR_SUBS_PODKOP_LIFECYCLE_FIX_V1' \
+        'podkop_lock()' \
+        'get_shutdown_correctly()' \
+        'set_shutdown_correctly()' \
+        'PODKOP_SHUTDOWN_STATE_FILE'; do
+        grep -q "$required" "$tmp" || {
+            rm -f "$tmp"
+            die "после backport не найдена обязательная часть: $required"
+        }
+    done
+    mv "$tmp" "$file"
+    say "Применён и проверен upstream fix Podkop #360/#399: блокировка start/stop/reload и регистрация существующих ruleset"
+}
+
 install_addon() {
     if [ ! -f "$LIB/constants.sh" ]; then
         warn "Podkop не найден на устройстве. Запускаю чистую установку $PODKOP_TAG..."
         install_podkop_base
     fi
+
+    # On fresh installs, the package post-install script may already have
+    # started the stock Podkop runtime. Let it finish before replacing its file.
+    wait_for_podkop_cli_idle
 
     version="$(sed -n 's/^PODKOP_VERSION="\(.*\)"/\1/p' "$LIB/constants.sh" 2> /dev/null || true)"
     case "$version" in
@@ -677,6 +949,7 @@ install_addon() {
     esac
 
     get_payload
+    patch_podkop_runtime_payload
     patch_subscription_payload
 
     cp "$PAYLOAD/podkop" "$BIN" && chmod 755 "$BIN"
@@ -690,6 +963,13 @@ SUBSCRIPTION_CACHE_DIR="/etc/podkop/subscriptions"
 SUBSCRIPTION_DEFAULT_USER_AGENT="v2rayN/7.0"
 SUBSCRIPTION_FETCH_TIMEOUT=20
 EOT
+    fi
+
+    if ! grep -q '^PODKOP_LOCK_FILE=' "$LIB/constants.sh"; then
+        printf '\nPODKOP_LOCK_FILE="/var/lock/podkop.lock"\n' >> "$LIB/constants.sh"
+    fi
+    if ! grep -q '^PODKOP_SHUTDOWN_STATE_FILE=' "$LIB/constants.sh"; then
+        printf 'PODKOP_SHUTDOWN_STATE_FILE="/tmp/podkop_shutdown_correctly"\n' >> "$LIB/constants.sh"
     fi
 
     luci_version="$(sed -n 's/^var PODKOP_LUCI_APP_VERSION = "\(.*\)";/\1/p' "$VIEW/main.js" 2> /dev/null || true)"
@@ -911,7 +1191,6 @@ apply_safe_defaults() {
 
     . /lib/functions.sh
     config_load podkop
-    safe_defaults_changed=0
 
     _rtr_enable_resolve_for_proxy_section() {
         local section="$1" connection_type current
@@ -924,7 +1203,7 @@ apply_safe_defaults() {
                 return 0
             }
             say "Включён resolve_real_ip_for_routing для секции $section"
-            safe_defaults_changed=1
+            PODKOP_UCI_CHANGED=1
         fi
         return 0
     }
@@ -935,16 +1214,80 @@ apply_safe_defaults() {
     if printf '%s\n' "$sb_version_text" | grep -q 'tls.utls-fallback'; then
         current="$(uci -q get podkop.settings.enable_utls_fallback 2>/dev/null || true)"
         if [ "$current" != "1" ]; then
-            uci -q set podkop.settings.enable_utls_fallback=1 || warn "Не удалось включить uTLS fallback"
-            safe_defaults_changed=1
-            say "Включён uTLS fallback для совместимости REALITY"
+            if uci -q set podkop.settings.enable_utls_fallback=1; then
+                PODKOP_UCI_CHANGED=1
+                say "Включён uTLS fallback для совместимости REALITY"
+            else
+                warn "Не удалось включить uTLS fallback"
+            fi
         fi
     else
         warn "Текущая сборка sing-box не содержит tls.utls-fallback; настройка не включена"
     fi
 
-    if [ "$safe_defaults_changed" -eq 1 ]; then
-        uci commit podkop || die "не удалось сохранить настройки Podkop"
+}
+
+commit_podkop_uci_changes() {
+    [ "$PODKOP_UCI_CHANGED" = "1" ] || {
+        say "Настройки Podkop не изменились; UCI commit не требуется"
+        return 0
+    }
+    uci commit podkop || die "не удалось сохранить настройки Podkop"
+    say "Настройки Podkop сохранены одним UCI commit; изменения применяются одним циклом перезапуска"
+}
+
+# Wait for Podkop to finish initialization and verify the nftables/FakeIP path.
+# This catches the exact failure mode where a concurrent restart deletes PodkopTable
+# while start_main is still building the sing-box configuration.
+verify_podkop_health() {
+    [ "$DO_ADDON" = "1" ] || return 0
+    command -v nft >/dev/null 2>&1 || {
+        warn "nft не найден; проверка таблиц Podkop пропущена"
+        return 0
+    }
+    [ -r "$LIB/constants.sh" ] || return 0
+    . "$LIB/constants.sh"
+
+    local attempt max_attempts table_ok fakeip_ok
+    max_attempts="${PODKOP_HEALTH_ATTEMPTS:-90}"
+    case "$max_attempts" in ''|*[!0-9]*) max_attempts=90 ;; esac
+    [ "$max_attempts" -ge 1 ] || max_attempts=90
+
+    say "Проверяю nftables и FakeIP после запуска Podkop (до $((max_attempts * 2)) секунд)..."
+    attempt=1
+    table_ok=0
+    fakeip_ok=0
+    while [ "$attempt" -le "$max_attempts" ]; do
+        table_ok=0
+        if nft list table inet "$NFT_TABLE_NAME" >/dev/null 2>&1 \
+            && nft list chain inet "$NFT_TABLE_NAME" mangle 2>/dev/null | grep -q 'counter' \
+            && nft list chain inet "$NFT_TABLE_NAME" mangle_output 2>/dev/null | grep -q 'counter' \
+            && nft list chain inet "$NFT_TABLE_NAME" proxy 2>/dev/null | grep -q 'counter'; then
+            table_ok=1
+        fi
+
+        fakeip_ok=0
+        if command -v nslookup >/dev/null 2>&1 && [ -n "${SB_DNS_INBOUND_ADDRESS:-}" ]; then
+            if nslookup fakeip.podkop.fyi "$SB_DNS_INBOUND_ADDRESS" 2>/dev/null | grep -q '198\.18\.'; then
+                fakeip_ok=1
+            fi
+        fi
+
+        [ "$table_ok" = "1" ] && [ "$fakeip_ok" = "1" ] && break
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+
+    if [ "$table_ok" = "1" ]; then
+        say "Проверка nftables пройдена: $NFT_TABLE_NAME и цепочки mangle/mangle_output/proxy содержат правила с counter"
+    else
+        warn "Podkop не создал полную nftables-таблицу/правила за $((max_attempts * 2)) секунд. Проверьте: nft list ruleset; logread -e podkop"
+    fi
+
+    if [ "$fakeip_ok" = "1" ]; then
+        say "Проверка FakeIP DNS пройдена через $SB_DNS_INBOUND_ADDRESS"
+    else
+        warn "Не удалось подтвердить FakeIP через $SB_DNS_INBOUND_ADDRESS. Проверьте sing-box DNS и диагностику Podkop."
     fi
 }
 
@@ -954,23 +1297,33 @@ choose_backup_policy
 create_backup
 
 if command -v apk >/dev/null 2>&1; then
-    # OpenWrt 25.12+: podkop-engine replaces/provides the sing-box dependency.
-    # Install it BEFORE Podkop so apk does not download the stock sing-box package
-    # from the OpenWrt feed (which failed during extraction on some connections).
-    [ "$DO_CORE" = "1" ] && install_core
-    [ "$DO_ADDON" = "1" ] && install_addon
+    # OpenWrt 25.12+: on a fresh install, engine must be installed before Podkop
+    # to satisfy the sing-box dependency. On an existing Podkop install, patch
+    # its lifecycle first so install_core() can stop it without the old UCI-commit
+    # restart race.
+    if [ "$DO_ADDON" = "1" ] && [ -f "$LIB/constants.sh" ]; then
+        wait_for_podkop_cli_idle
+        install_addon
+        [ "$DO_CORE" = "1" ] && install_core
+    else
+        [ "$DO_CORE" = "1" ] && install_core
+        [ "$DO_ADDON" = "1" ] && install_addon
+    fi
 else
-    # OpenWrt 24.10 and older: install Podkop first, then replace sing-box via opkg.
+    # OpenWrt 24.10 and older: install/patch Podkop first, then replace sing-box via opkg.
     [ "$DO_ADDON" = "1" ] && install_addon
     [ "$DO_CORE" = "1" ] && install_core
 fi
 apply_xhttp_filter_choice
 apply_safe_defaults
+commit_podkop_uci_changes
 
 if [ -x "$ROOT/etc/init.d/podkop" ]; then
-    say "Перезапускаю Podkop"
+    say "Перезапускаю Podkop (start/stop/reload сериализованы lock-файлом)"
     "$ROOT/etc/init.d/podkop" restart || warn "не удалось перезапустить Podkop"
 fi
+
+verify_podkop_health
 
 say ""
 say "Готово (rtr-subs $ADDON_VERSION). Фильтр XHTTP и резервное копирование настроены по выбору пользователя."
