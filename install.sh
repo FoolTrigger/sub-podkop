@@ -21,10 +21,12 @@
 # redirect-header limitations; SHA256 is required unless PE_ALLOW_UNVERIFIED=1 is set.
 # On OpenWrt 25.12/APK, podkop-engine is installed before Podkop to satisfy its
 # sing-box dependency and avoid an unnecessary download of the stock sing-box APK.
+# Before committing Podkop UCI settings, stop the service and let procd triggers settle;
+# then start it once. This avoids a queued config.change restart during a long URLTest build.
 
 set -eu
 
-ADDON_VERSION="1.4.3"
+ADDON_VERSION="1.4.4"
 RAW_BASE="${RTR_SUBS_RAW:-https://raw.githubusercontent.com/FoolTrigger/sub-podkop/main}"
 PODKOP_REPO="itdoginfo/podkop"
 PODKOP_TAG="${PODKOP_TAG:-0.7.24}"
@@ -1233,7 +1235,25 @@ commit_podkop_uci_changes() {
         return 0
     }
     uci commit podkop || die "не удалось сохранить настройки Podkop"
-    say "Настройки Podkop сохранены одним UCI commit; изменения применяются одним циклом перезапуска"
+    say "Настройки Podkop сохранены одним UCI commit"
+}
+
+verify_podkop_lifecycle_patch() {
+    [ "$DO_ADDON" = "1" ] || return 0
+    [ -s "$BIN" ] || die "не найден $BIN после установки дополнения"
+    [ -s "$LIB/constants.sh" ] || die "не найден $LIB/constants.sh"
+
+    grep -q 'RTR_SUBS_PODKOP_LIFECYCLE_FIX_V1' "$BIN" \
+        || die "в /usr/bin/podkop отсутствует lifecycle fix; безопасный запуск отменён"
+    grep -q '^PODKOP_LOCK_FILE=' "$LIB/constants.sh" \
+        || die "в constants.sh отсутствует PODKOP_LOCK_FILE"
+    grep -q '^PODKOP_SHUTDOWN_STATE_FILE=' "$LIB/constants.sh" \
+        || die "в constants.sh отсутствует PODKOP_SHUTDOWN_STATE_FILE"
+    grep -q 'set_shutdown_correctly 0' "$BIN" \
+        || die "в runtime отсутствует запись временного состояния запуска"
+    grep -q 'set_shutdown_correctly 1' "$BIN" \
+        || die "в runtime отсутствует запись временного состояния остановки"
+    say "Lifecycle fix Podkop проверен: lock + временное shutdown-state включены"
 }
 
 # Wait for Podkop to finish initialization and verify the nftables/FakeIP path.
@@ -1316,11 +1336,30 @@ else
 fi
 apply_xhttp_filter_choice
 apply_safe_defaults
-commit_podkop_uci_changes
 
-if [ -x "$ROOT/etc/init.d/podkop" ]; then
-    say "Перезапускаю Podkop (start/stop/reload сериализованы lock-файлом)"
+if [ -x "$ROOT/etc/init.d/podkop" ] && [ "$DO_ADDON" = "1" ]; then
+    verify_podkop_lifecycle_patch
+
+    # Stop the old procd instance BEFORE committing /etc/config/podkop.
+    # Otherwise config.change may queue a restart while sing_box_init_config()
+    # is still building/testing many URLTest members. When that delayed restart
+    # runs, stop() removes PodkopTable and kills sing-box immediately after startup.
+    say "Останавливаю Podkop перед UCI commit, чтобы procd не поставил повторный restart в очередь..."
+    "$ROOT/etc/init.d/podkop" stop || die "не удалось штатно остановить Podkop перед применением настроек"
+
+    # Allow a pending procd config.change event (default reload delay is 2 s)
+    # to drain while the service is stopped.
+    sleep 3
+    commit_podkop_uci_changes
+
+    say "Запускаю Podkop один раз после применения всех настроек"
+    "$ROOT/etc/init.d/podkop" start || die "не удалось запустить Podkop после установки"
+elif [ -x "$ROOT/etc/init.d/podkop" ]; then
+    commit_podkop_uci_changes
+    say "Перезапускаю Podkop (режим core-only)"
     "$ROOT/etc/init.d/podkop" restart || warn "не удалось перезапустить Podkop"
+else
+    commit_podkop_uci_changes
 fi
 
 verify_podkop_health
